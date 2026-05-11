@@ -18,7 +18,21 @@ let appState = {
 let appData = { students: [], transactions: [], stats: { income: 0, expense: 0, balance: 0 }, notices: [] };
 let analyticsChartInstance = null;
 
-// --- 1. BOOT SEQUENCE & SPLASH SCREEN ---
+// ==========================================================================
+// 1. BULLETPROOF PULL-TO-REFRESH KILLER (NATIVE APP FEEL)
+// ==========================================================================
+document.addEventListener('touchmove', function(event) {
+    // Only allow scrolling if the touch is inside a designated scrollable container
+    const isScrollable = event.target.closest('.content-area, .custom-scrollbar, [style*="overflow-y: auto"]');
+    if (!isScrollable) {
+        event.preventDefault(); // Kills the bounce effect on the main body
+    }
+}, { passive: false });
+
+
+// ==========================================================================
+// 2. BOOT SEQUENCE & SPLASH SCREEN
+// ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
     bootApplication();
@@ -52,26 +66,24 @@ function hideLoader() {
     loader.classList.add('hide'); 
 }
 
-// --- 2. DYNAMIC FEE CALCULATOR (CRITICAL FIX) ---
-// Scans the transaction ledger to find all payments made by a specific student
+// Dynamic Due Calculator (Scans full ledger)
 function getDynamicPaidFee(student) {
     let total = 0;
     if (appData.transactions) {
         appData.transactions.forEach(tx => {
-            // Only look at income that is NOT Job or Print desk
             if (tx.type === 'income' && !tx.title.includes('Job Desk:') && !tx.title.includes('Print Desk:')) {
-                // If the transaction title includes the student's ID or Name, count it as their payment
                 if (tx.title.includes(`[${student.id}]`) || tx.title.includes(student.name)) {
                     total += parseFloat(tx.amount) || 0;
                 }
             }
         });
     }
-    // Return whichever is higher: the recorded advance, or the total calculated from ledger
     return Math.max(total, parseFloat(student.paidFee) || 0);
 }
 
-// --- 3. AUTHENTICATION (STANDARD & PIN) ---
+// ==========================================================================
+// 3. AUTHENTICATION (STANDARD & PIN)
+// ==========================================================================
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const userid = document.getElementById('userid').value.trim();
@@ -142,7 +154,10 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
     }
 });
 
-// --- 4. UI ROUTING & PERSPECTIVE SWITCHER ---
+
+// ==========================================================================
+// 4. UI ROUTING & PERSPECTIVE SWITCHER
+// ==========================================================================
 function setupApplicationUI() {
     document.getElementById('screen-login').classList.remove('active');
     document.getElementById('main-header').classList.remove('hidden-initially');
@@ -240,7 +255,10 @@ function exitAdminPreview() {
     setupApplicationUI();
 }
 
-// --- 5. DATA SYNCING LOGIC ---
+
+// ==========================================================================
+// 5. DATA SYNCING LOGIC
+// ==========================================================================
 async function syncDatabase(actionDesc) {
     if (appState.actualRole !== 'admin') { 
         alert("Action Denied: You do not have Write Permissions."); 
@@ -265,7 +283,10 @@ async function syncDatabase(actionDesc) {
     }
 }
 
-// --- 6. NOTIFICATIONS & SETTINGS MODALS ---
+
+// ==========================================================================
+// 6. MODALS (NOTIFICATIONS, SETTINGS, HISTORY, STUDENT DETAILS)
+// ==========================================================================
 function checkDuesSilently() {
     let count = 0; 
     appData.students.forEach(st => { 
@@ -316,6 +337,111 @@ function openSettingsModal() {
 }
 function closeSettingsModal() { document.getElementById('modal-settings').classList.remove('active'); }
 
+// HISTORY MODAL (For Dashboard Clicks)
+function openHistoryModal(type) {
+    const container = document.getElementById('history-list-container');
+    const title = document.getElementById('history-modal-title');
+    container.innerHTML = '';
+    
+    let filtered = [];
+    if (type === 'income') {
+        title.innerText = "Total Income History";
+        filtered = appData.transactions.filter(t => t.type === 'income');
+    } else if (type === 'expense') {
+        title.innerText = "Total Expense History";
+        filtered = appData.transactions.filter(t => t.type === 'expense');
+    } else {
+        title.innerText = "Complete Ledger";
+        filtered = appData.transactions;
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No transactions found.</p>`;
+    } else {
+        filtered.slice().reverse().forEach(tx => {
+            const isInc = tx.type === 'income';
+            const color = isInc ? 'var(--success)' : 'var(--danger)';
+            const sign = isInc ? '+' : '-';
+            container.innerHTML += `
+                <div class="list-item" style="padding: 12px 16px; margin-bottom: 8px;">
+                    <div class="list-info">
+                        <h4 style="font-size: 0.9rem;">${tx.title.replace('Job Desk: ','').replace('Print Desk: ','')}</h4>
+                        <p style="font-size: 0.65rem;">${tx.date}</p>
+                    </div>
+                    <div class="list-value">
+                        <h3 style="color: ${color}; font-size: 1.1rem;">${sign}₹${tx.amount}</h3>
+                    </div>
+                </div>`;
+        });
+    }
+    document.getElementById('modal-history').classList.add('active');
+}
+function closeHistoryModal() { document.getElementById('modal-history').classList.remove('active'); }
+
+// STUDENT DETAIL MODAL
+function openStudentDetailModal(studentId) {
+    if (appState.role === 'student') return; 
+    
+    const st = appData.students.find(s => s.id === studentId);
+    if (!st) return;
+
+    const actualPaid = getDynamicPaidFee(st);
+    const dues = st.totalFee - actualPaid;
+    
+    // Avatar
+    const avatarEl = document.getElementById('detail-avatar');
+    if (st.image) {
+        avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        avatarEl.style.padding = "0";
+    } else {
+        avatarEl.innerHTML = st.name.charAt(0).toUpperCase();
+        avatarEl.style.padding = ""; 
+    }
+
+    // Basic Info
+    document.getElementById('detail-name').innerText = st.name;
+    document.getElementById('detail-id').innerText = `ID: ${st.id}`;
+    document.getElementById('detail-phone').innerText = st.phone;
+    document.getElementById('detail-date').innerText = st.date;
+    document.getElementById('detail-course').innerText = st.course;
+    
+    document.getElementById('detail-total').innerText = `₹${st.totalFee}`;
+    document.getElementById('detail-paid').innerText = `₹${actualPaid}`;
+    document.getElementById('detail-due').innerText = `₹${dues}`;
+
+    // Populating Payment History Ledger for this specific student
+    const historyContainer = document.getElementById('detail-history-list');
+    historyContainer.innerHTML = '';
+    
+    const stuTx = appData.transactions.filter(tx => tx.type === 'income' && !tx.title.includes('Job Desk:') && !tx.title.includes('Print Desk:') && (tx.title.includes(`[${st.id}]`) || tx.title.includes(st.name)));
+    
+    if (stuTx.length === 0) {
+        if (st.paidFee > 0) {
+            historyContainer.innerHTML = `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px;"><div class="list-info"><h4 style="font-size:0.8rem;">Initial Advance</h4><p style="font-size:0.65rem;">${st.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${st.paidFee}</h3></div></div>`;
+        } else {
+            historyContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 10px;">No payments recorded.</p>`;
+        }
+    } else {
+        stuTx.slice().reverse().forEach(tx => {
+            historyContainer.innerHTML += `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px;"><div class="list-info"><h4 style="font-size:0.8rem;">Fee Payment</h4><p style="font-size:0.65rem;">${tx.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${tx.amount}</h3></div></div>`;
+        });
+    }
+
+    // Admin Controls within Student Modal
+    const editBtn = document.getElementById('btn-edit-student');
+    if (appState.actualRole === 'admin') {
+        editBtn.classList.remove('hidden-initially');
+        editBtn.onclick = () => alert("Student Edit feature coming in next update!"); // Placeholder action
+    } else {
+        editBtn.classList.add('hidden-initially');
+    }
+
+    closeNotificationModal();
+    setTimeout(() => { document.getElementById('modal-student-detail').classList.add('active'); }, 100);
+}
+function closeStudentDetailModal() { document.getElementById('modal-student-detail').classList.remove('active'); }
+
+// PIN Set & Logout
 async function promptSetPin() {
     closeSettingsModal();
     const pin = prompt("Enter a new 4-Digit PIN for quick access:");
@@ -345,43 +471,10 @@ function clearSavedLogin() {
     window.location.reload(); 
 }
 
-// --- 7. STUDENT DETAILS MODAL ---
-function openStudentDetailModal(studentId) {
-    if (appState.role === 'student') return; 
-    
-    const st = appData.students.find(s => s.id === studentId);
-    if (!st) return;
 
-    const actualPaid = getDynamicPaidFee(st);
-    const dues = st.totalFee - actualPaid;
-    
-    // Check if Image exists
-    const avatarEl = document.getElementById('detail-avatar');
-    if (st.image) {
-        avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
-        avatarEl.style.padding = "0";
-    } else {
-        avatarEl.innerHTML = st.name.charAt(0).toUpperCase();
-        avatarEl.style.padding = ""; // Reset padding
-    }
-
-    document.getElementById('detail-name').innerText = st.name;
-    document.getElementById('detail-id').innerText = `ID: ${st.id}`;
-    document.getElementById('detail-phone').innerText = st.phone;
-    document.getElementById('detail-date').innerText = st.date;
-    document.getElementById('detail-course').innerText = st.course;
-    
-    document.getElementById('detail-total').innerText = `₹${st.totalFee}`;
-    document.getElementById('detail-paid').innerText = `₹${actualPaid}`;
-    document.getElementById('detail-due').innerText = `₹${dues}`;
-
-    closeNotificationModal();
-    setTimeout(() => { document.getElementById('modal-student-detail').classList.add('active'); }, 100);
-}
-function closeStudentDetailModal() { document.getElementById('modal-student-detail').classList.remove('active'); }
-
-
-// --- 8. FORM SUBMISSIONS ---
+// ==========================================================================
+// 7. FORM SUBMISSIONS
+// ==========================================================================
 function recalcStats() {
     appData.stats.income = 0; appData.stats.expense = 0;
     appData.transactions.forEach(tx => {
@@ -462,7 +555,10 @@ async function sendBroadcast() {
     }
 }
 
-// --- 9. RENDERERS ---
+
+// ==========================================================================
+// 8. RENDERERS
+// ==========================================================================
 function updateDashboardFinancials() {
     document.getElementById('dash-balance').innerText = `₹${appData.stats.balance.toLocaleString('en-IN')}`;
     document.getElementById('dash-income').innerText = `₹${appData.stats.income.toLocaleString('en-IN')}`;
@@ -486,7 +582,6 @@ function renderStudents() {
         const dues = st.totalFee - actualPaid;
         const dueColor = dues > 0 ? 'var(--danger)' : 'var(--success)';
         
-        // Image Check
         const avatarContent = st.image 
             ? `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 14px;">` 
             : st.name.charAt(0).toUpperCase();
@@ -545,7 +640,6 @@ function renderStudentDashboard() {
     document.getElementById('stu-course').innerText = st.course;
     document.getElementById('stu-date').innerText = st.date;
     
-    // Check if Image exists
     const avatarEl = document.getElementById('stu-avatar');
     if (st.image) {
         avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
