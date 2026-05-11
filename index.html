@@ -4,61 +4,153 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Excellent Institute ERP</title>
-    <!-- We will put our CSS here -->
+    <!-- Link to external FontAwesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Link to external CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- App Container -->
     <div id="app-container">
         
-        <!-- Screen 1: Login -->
+        <!-- Loading Spinner -->
+        <div id="loader">
+            <i class="fa-solid fa-spinner fa-spin fa-3x" style="margin-bottom: 12px;"></i>
+            <p id="loader-text">Loading...</p>
+        </div>
+
+        <!-- SCREEN: Login -->
         <div id="screen-login" class="screen active">
-            <div class="login-header">
-                <h2>Excellent Institute</h2>
-                <p>ERP System</p>
-            </div>
-            
-            <div class="card">
+            <div class="card text-center" style="max-width: 400px; margin: auto; width: 100%;">
+                <div class="login-logo"><i class="fa-solid fa-building-columns"></i></div>
+                <h2 style="margin-bottom: 5px;">Excellent Institute</h2>
+                <p class="subtitle">SECURE ADMIN PORTAL</p>
+                
                 <form id="login-form">
-                    <div class="input-group">
-                        <label for="username">Username / User ID</label>
-                        <input type="text" id="username" required autocomplete="off">
+                    <div class="input-group text-left">
+                        <label>Admin Password</label>
+                        <input type="password" id="password" required placeholder="Enter password...">
                     </div>
-                    <div class="input-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" required>
-                    </div>
-                    <button type="submit" class="btn-primary" id="login-btn">Log In</button>
-                    <p id="login-message" class="message"></p>
+                    <p id="login-error">Incorrect password.</p>
+                    <button type="submit" class="btn-primary" id="login-btn">Authenticate Access</button>
                 </form>
             </div>
         </div>
 
-        <!-- Screen 2: Main Dashboard (Hidden initially) -->
-        <div id="screen-main" class="screen">
+        <!-- SCREEN: Dashboard -->
+        <div id="screen-dashboard" class="screen">
             <div class="top-app-bar">
-                <h3>Dashboard</h3>
+                <span>Dashboard</span>
+                <i class="fa-solid fa-bell" style="font-size: 16px;"></i>
+            </div>
+            <div class="content-area">
+                <div class="stat-grid">
+                    <div class="stat-box balance">
+                        <p>Available Balance</p>
+                        <h2 id="dash-balance">₹0</h2>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="stat-box income">
+                            <p>Total In</p>
+                            <h2 id="dash-income">₹0</h2>
+                        </div>
+                        <div class="stat-box expense">
+                            <p>Total Out</p>
+                            <h2 id="dash-expense">₹0</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="section-heading">Quick Actions</p>
+                <div class="quick-actions">
+                    <button class="action-btn" onclick="switchTab('admission')">
+                        <i class="fa-solid fa-user-plus"></i> New Admission
+                    </button>
+                    <button class="action-btn" onclick="switchTab('students')">
+                        <i class="fa-solid fa-users"></i> Student List
+                    </button>
+                </div>
             </div>
             
+            <!-- Bottom Navigation -->
+            <div class="bottom-nav">
+                <button class="nav-item active" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button>
+                <button class="nav-item" onclick="switchTab('students')"><i class="fa-solid fa-users"></i>Students</button>
+                <button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button>
+            </div>
+        </div>
+
+        <!-- SCREEN: New Admission -->
+        <div id="screen-admission" class="screen">
+            <div class="top-app-bar">
+                <i class="fa-solid fa-arrow-left" onclick="switchTab('dashboard')" style="cursor: pointer;"></i>
+                <span>New Admission</span>
+                <i class="fa-solid fa-ellipsis-vertical" style="opacity: 0;"></i> <!-- spacer -->
+            </div>
             <div class="content-area">
                 <div class="card">
-                    <h4>Welcome Back</h4>
-                    <p>Select an option from the menu below.</p>
+                    <p class="info-banner">
+                        <i class="fa-solid fa-circle-info text-primary"></i> Eligibility criteria: 8th class and above.
+                    </p>
+                    
+                    <form id="admission-form">
+                        <div class="input-group">
+                            <label>Admission Date</label>
+                            <input type="date" id="reg-date" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Full Name</label>
+                            <input type="text" id="reg-name" required placeholder="Student Name">
+                        </div>
+                        <div class="input-group">
+                            <label>Mobile Number</label>
+                            <input type="tel" id="reg-phone" placeholder="e.g. 6371305069" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Course Selected</label>
+                            <input type="text" id="reg-course" placeholder="e.g. PGDCA or Python" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Total Course Fee (₹)</label>
+                            <input type="number" id="reg-fee" required placeholder="0">
+                        </div>
+                        <div class="input-group">
+                            <label>Advance Paid Today (₹)</label>
+                            <input type="number" id="reg-paid" required placeholder="0">
+                        </div>
+                        <button type="submit" class="btn-primary"><i class="fa-solid fa-save"></i> Save Admission & Sync</button>
+                    </form>
                 </div>
-                <!-- Future stacked data cards go here -->
             </div>
-
-            <!-- Bottom Navigation Bar -->
+            
             <div class="bottom-nav">
-                <button class="nav-item active" onclick="switchTab('home')">Home</button>
-                <button class="nav-item" onclick="switchTab('students')">Students</button>
-                <button class="nav-item" onclick="switchTab('fees')">Fees</button>
-                <button class="nav-item" onclick="switchTab('profile')">Profile</button>
+                <button class="nav-item" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button>
+                <button class="nav-item" onclick="switchTab('students')"><i class="fa-solid fa-users"></i>Students</button>
+                <button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button>
+            </div>
+        </div>
+
+        <!-- SCREEN: Student List -->
+        <div id="screen-students" class="screen">
+            <div class="top-app-bar">
+                <span>Student Database</span>
+            </div>
+            <div class="content-area" style="padding: 0;">
+                <div class="card" style="margin: 16px; padding: 0; overflow: hidden;" id="student-list">
+                    <!-- Student items will be populated here -->
+                </div>
+            </div>
+            
+            <div class="bottom-nav">
+                <button class="nav-item" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button>
+                <button class="nav-item active" onclick="switchTab('students')"><i class="fa-solid fa-users"></i>Students</button>
+                <button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button>
             </div>
         </div>
 
     </div>
 
-    <!-- We will put our JS here -->
+    <!-- Link to external JavaScript -->
+    <script src="app.js"></script>
 </body>
 </html>
