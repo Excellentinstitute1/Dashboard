@@ -362,7 +362,6 @@ function clearSavedLogin() {
 
 // --- 6. STUDENT DETAILS MODAL ---
 function openStudentDetailModal(studentId) {
-    // Only Admin or Staff should be able to open this
     if (appState.role === 'student') return; 
     
     const st = appData.students.find(s => s.id === studentId);
@@ -370,8 +369,15 @@ function openStudentDetailModal(studentId) {
 
     const dues = st.totalFee - st.paidFee;
     
-    // Populate Modal (NO PASSWORDS EXPOSED)
-    document.getElementById('detail-avatar').innerText = st.name.charAt(0).toUpperCase();
+    // Check if image exists for the detail modal
+    const avatarEl = document.getElementById('detail-avatar');
+    if (st.image) {
+        avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        avatarEl.style.padding = "0";
+    } else {
+        avatarEl.innerHTML = st.name.charAt(0).toUpperCase();
+    }
+
     document.getElementById('detail-name').innerText = st.name;
     document.getElementById('detail-id').innerText = `ID: ${st.id}`;
     document.getElementById('detail-phone').innerText = st.phone;
@@ -382,12 +388,12 @@ function openStudentDetailModal(studentId) {
     document.getElementById('detail-paid').innerText = `₹${st.paidFee}`;
     document.getElementById('detail-due').innerText = `₹${dues}`;
 
-    // Close notification modal if open, then open detail modal
     closeNotificationModal();
     setTimeout(() => {
         document.getElementById('modal-student-detail').classList.add('active');
     }, 100);
 }
+
 function closeStudentDetailModal() { document.getElementById('modal-student-detail').classList.remove('active'); }
 
 
@@ -498,10 +504,15 @@ function renderStudents() {
         const dues = st.totalFee - st.paidFee;
         const dueColor = dues > 0 ? 'var(--danger)' : 'var(--success)';
         
+        // Check if image exists in database
+        const avatarContent = st.image 
+            ? `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 14px;">` 
+            : st.name.charAt(0).toUpperCase();
+
         listEl.innerHTML += `
             <div class="list-item" onclick="openStudentDetailModal('${st.id}')">
                 <div style="display: flex; align-items: center;">
-                    <div class="list-avatar">${st.name.charAt(0).toUpperCase()}</div>
+                    <div class="list-avatar" style="padding: 0; overflow: hidden;">${avatarContent}</div>
                     <div class="list-info">
                         <h4>${st.name}</h4>
                         <p>${st.phone} • ${st.course}</p>
@@ -549,18 +560,24 @@ function renderStudentDashboard() {
     if(!st) return;
 
     document.getElementById('stu-name').innerText = st.name; 
-    document.getElementById('stu-avatar').innerText = st.name.charAt(0).toUpperCase(); 
     document.getElementById('stu-course').innerText = st.course;
     document.getElementById('stu-date').innerText = st.date;
+    
+    // Check if image exists for student profile view
+    const avatarEl = document.getElementById('stu-avatar');
+    if (st.image) {
+        avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        avatarEl.style.padding = "0";
+    } else {
+        avatarEl.innerHTML = st.name.charAt(0).toUpperCase();
+    }
     
     const dues = st.totalFee - st.paidFee; 
     document.getElementById('stu-due-amount').innerText = `₹${dues}`; 
     document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
-    const noticesEl = document.getElementById('stu-notices'); 
-    noticesEl.innerHTML = '';
-    
+    const noticesEl = document.getElementById('stu-notices'); noticesEl.innerHTML = '';
     if(appData.notices && appData.notices.length > 0) {
         appData.notices.forEach(n => {
             noticesEl.innerHTML += `
