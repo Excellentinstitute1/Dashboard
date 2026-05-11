@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Excellent Institute ERP</title>
     
     <!-- External Libraries -->
@@ -13,22 +13,31 @@
     <!-- Link to your Premium CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Inline override to guarantee pull-to-refresh is disabled -->
+    <!-- BULLETPROOF PULL-TO-REFRESH KILLER -->
     <style>
         html, body {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             overscroll-behavior-y: none !important;
-            touch-action: pan-y !important;
+            -webkit-overflow-scrolling: auto;
+        }
+        #app-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            overflow: hidden;
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased h-screen w-screen overflow-hidden overscroll-none touch-pan-y relative">
+<body class="bg-slate-50 text-slate-800 antialiased h-screen w-screen relative">
 
     <!-- 1. GLOBAL WATERMARK (Behind everything) -->
     <div class="fixed inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden">
         <img src="excellent institute logo.jpeg" alt="Watermark" class="w-96 h-96 object-contain opacity-[0.03] grayscale">
     </div>
 
-    <!-- 2. GLOBAL SPLASH SCREEN (Now with orbiting logo spinner) -->
+    <!-- 2. GLOBAL SPLASH SCREEN -->
     <div id="global-loader" class="relative z-[9999]">
         <div class="splash-logo-wrapper">
             <div class="splash-spinner"></div>
@@ -130,15 +139,20 @@
             <!-- VIEW: DASHBOARD (Admin/Staff) -->
             <div id="view-dashboard" class="view-section">
                 <div class="stat-grid two-col">
-                    <div class="stat-box income"><p>Total In</p><h2 id="dash-income">₹0</h2></div>
-                    <div class="stat-box expense"><p>Total Out</p><h2 id="dash-expense">₹0</h2></div>
+                    <div class="stat-box income ripple-target" onclick="openHistoryModal('income')" style="cursor: pointer;">
+                        <p>Total In</p><h2 id="dash-income">₹0</h2>
+                    </div>
+                    <div class="stat-box expense ripple-target" onclick="openHistoryModal('expense')" style="cursor: pointer;">
+                        <p>Total Out</p><h2 id="dash-expense">₹0</h2>
+                    </div>
                 </div>
                 <div class="stat-grid">
-                    <div class="stat-box balance" style="background: linear-gradient(135deg, var(--bg-surface), #f1f5f9);">
-                        <p>Net Balance</p>
+                    <!-- Fixed White Text for Net Balance -->
+                    <div class="stat-box balance ripple-target" onclick="openHistoryModal('balance')" style="background: var(--grad-dark); cursor: pointer; border: none;">
+                        <p style="color: var(--text-muted);">Net Balance</p>
                         <div class="flex justify-between items-center">
-                            <h2 id="dash-balance">₹0</h2>
-                            <i class="fa-solid fa-vault text-4xl" style="color: var(--primary-light); opacity: 0.3;"></i>
+                            <h2 id="dash-balance" style="color: #ffffff; text-shadow: 0 2px 10px rgba(255,255,255,0.2);">₹0</h2>
+                            <i class="fa-solid fa-vault text-4xl" style="color: rgba(255,255,255,0.15);"></i>
                         </div>
                     </div>
                 </div>
@@ -168,7 +182,7 @@
                     <div id="stu-avatar" class="avatar-large">S</div>
                     <h2 id="stu-name" style="font-size: 1.5rem; font-weight: 900; color: var(--text-heading);">Student Name</h2>
                     <p id="stu-course" style="font-size: 0.85rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">Course Enrolled</p>
-                    <p style="font-size: 0.65rem; font-weight: 800; color: var(--primary); background: var(--bg-base); padding: 4px 10px; border-radius: 8px;">Reg Date: <span id="stu-date"></span></p>
+                    <p style="font-size: 0.65rem; font-weight: 800; color: var(--primary); background: rgba(79,70,229,0.1); padding: 4px 10px; border-radius: 8px;">Reg Date: <span id="stu-date"></span></p>
                 </div>
 
                 <div class="stat-grid">
@@ -200,12 +214,14 @@
                 </form>
             </div>
 
-            <!-- VIEW: STUDENTS LIST -->
+            <!-- VIEW: STUDENTS LIST (Database) -->
             <div id="view-students" class="view-section">
                 <div class="input-group sticky top-0 z-10 pb-2 pt-1" style="background: var(--bg-base);">
                     <input type="text" id="student-search" class="form-input shadow-sm" placeholder="Search by name or phone..." onkeyup="renderStudents()">
                 </div>
-                <div id="student-list"></div>
+                <div id="student-list">
+                    <!-- Populated via JS -->
+                </div>
             </div>
 
             <!-- VIEW: JOB DESK -->
@@ -277,7 +293,7 @@
             </div>
         </div>
 
-        <!-- MODAL: DETAILED STUDENT PROFILE -->
+        <!-- MODAL: DETAILED STUDENT PROFILE WITH PAYMENT HISTORY -->
         <div id="modal-student-detail" class="modal-overlay">
             <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
                 <div class="modal-pull-bar"></div>
@@ -324,6 +340,33 @@
                             <h4 id="detail-due" style="font-size: 1.1rem; font-weight: 900; color: var(--danger);">₹0</h4>
                         </div>
                     </div>
+
+                    <!-- Payment History Section inside Student Details -->
+                    <div class="mt-6 border-t border-slate-200 pt-4">
+                        <p style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">Payment History</p>
+                        <div id="detail-history-list" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Admin Edit Button -->
+                    <button id="btn-edit-student" class="hidden-initially w-full mt-4 bg-slate-800 text-white font-bold py-3 rounded-xl cursor-pointer shadow-md">
+                        <i class="fa-solid fa-pen-to-square mr-2"></i> Edit Student Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW MODAL: DASHBOARD TRANSACTION HISTORY -->
+        <div id="modal-history" class="modal-overlay">
+            <div class="modal-content" style="max-height: 85vh; display: flex; flex-direction: column;">
+                <div class="modal-pull-bar"></div>
+                <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-200 shrink-0">
+                    <h3 id="history-modal-title" style="font-size: 1.2rem; font-weight: 900; color: var(--text-heading);">Transaction History</h3>
+                    <button onclick="closeHistoryModal()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div id="history-list-container" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pb-4">
+                    <!-- Populated via JS -->
                 </div>
             </div>
         </div>
