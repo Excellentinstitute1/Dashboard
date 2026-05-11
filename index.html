@@ -4,75 +4,80 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Excellent Institute ERP</title>
-    <!-- Link to external FontAwesome for icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Link to external CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="app-container">
-        
         <!-- Loading Spinner -->
         <div id="loader">
             <i class="fa-solid fa-spinner fa-spin fa-3x" style="margin-bottom: 12px;"></i>
             <p id="loader-text">Loading...</p>
         </div>
 
-        <!-- SCREEN: Login -->
+        <!-- SCREEN: Unified Login -->
         <div id="screen-login" class="screen active">
             <div class="card text-center" style="max-width: 400px; margin: auto; width: 100%;">
-                <div class="login-logo"><i class="fa-solid fa-building-columns"></i></div>
-                <h2 style="margin-bottom: 5px;">Excellent Institute</h2>
-                <p class="subtitle">SECURE ADMIN PORTAL</p>
+                <!-- Circular Logo Container -->
+                <div class="logo-container">
+                    <img src="logo.jpeg" alt="Excellent Institute Logo" class="circular-logo" onerror="this.src='https://ui-avatars.com/api/?name=Excellent+Institute&background=4f46e5&color=fff&size=100'">
+                </div>
+                <h2>Excellent Institute</h2>
+                <p class="subtitle">SECURE ERP PORTAL</p>
                 
                 <form id="login-form">
                     <div class="input-group text-left">
-                        <label>Admin Password</label>
+                        <label>User ID (Phone Number or Admin ID)</label>
+                        <input type="text" id="userid" required placeholder="e.g., 6371305069 or 'admin'">
+                    </div>
+                    <div class="input-group text-left">
+                        <label>Password</label>
                         <input type="password" id="password" required placeholder="Enter password...">
                     </div>
-                    <p id="login-error">Incorrect password.</p>
-                    <button type="submit" class="btn-primary" id="login-btn">Authenticate Access</button>
+                    <p id="login-error">Incorrect credentials.</p>
+                    <button type="submit" class="btn-primary" id="login-btn">Secure Login</button>
+                    
+                    <!-- Demo Account Info for testing -->
+                    <div class="demo-info">
+                        <p><strong>Demo Admin:</strong> ID: admin | Pass: admin123</p>
+                    </div>
                 </form>
             </div>
         </div>
 
-        <!-- SCREEN: Dashboard -->
-        <div id="screen-dashboard" class="screen">
+        <!-- SCREEN: Admin/Staff Dashboard (Hidden for Students) -->
+        <div id="screen-dashboard" class="screen admin-only">
             <div class="top-app-bar">
-                <span>Dashboard</span>
-                <i class="fa-solid fa-bell" style="font-size: 16px;"></i>
+                <span id="welcome-text">Dashboard</span>
+                <i class="fa-solid fa-bell notification-icon" onclick="checkDues()"></i>
             </div>
             <div class="content-area">
+                <!-- Broadcasting Feature -->
+                <div class="card" id="broadcast-panel">
+                    <h3 style="margin-bottom:10px; font-size:14px;"><i class="fa-solid fa-bullhorn text-primary"></i> Broadcast Notice</h3>
+                    <input type="text" id="broadcast-title" placeholder="Notice Title" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc;">
+                    <textarea id="broadcast-msg" placeholder="Type message for all students..." rows="3" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc;"></textarea>
+                    <button class="btn-primary" style="padding:10px; margin-top:10px;" onclick="sendBroadcast()">Send to All Students</button>
+                </div>
+
                 <div class="stat-grid">
                     <div class="stat-box balance">
                         <p>Available Balance</p>
                         <h2 id="dash-balance">₹0</h2>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div class="stat-box income">
-                            <p>Total In</p>
-                            <h2 id="dash-income">₹0</h2>
-                        </div>
-                        <div class="stat-box expense">
-                            <p>Total Out</p>
-                            <h2 id="dash-expense">₹0</h2>
-                        </div>
-                    </div>
                 </div>
-
+                
                 <p class="section-heading">Quick Actions</p>
                 <div class="quick-actions">
-                    <button class="action-btn" onclick="switchTab('admission')">
+                    <button class="action-btn" onclick="switchTab('admission')" id="btn-admission">
                         <i class="fa-solid fa-user-plus"></i> New Admission
                     </button>
                     <button class="action-btn" onclick="switchTab('students')">
-                        <i class="fa-solid fa-users"></i> Student List
+                        <i class="fa-solid fa-users"></i> Student Database
                     </button>
                 </div>
             </div>
             
-            <!-- Bottom Navigation -->
             <div class="bottom-nav">
                 <button class="nav-item active" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button>
                 <button class="nav-item" onclick="switchTab('students')"><i class="fa-solid fa-users"></i>Students</button>
@@ -80,77 +85,61 @@
             </div>
         </div>
 
-        <!-- SCREEN: New Admission -->
-        <div id="screen-admission" class="screen">
+        <!-- SCREEN: Student Personal Dashboard (Isolated) -->
+        <div id="screen-student-dash" class="screen">
             <div class="top-app-bar">
-                <i class="fa-solid fa-arrow-left" onclick="switchTab('dashboard')" style="cursor: pointer;"></i>
-                <span>New Admission</span>
-                <i class="fa-solid fa-ellipsis-vertical" style="opacity: 0;"></i> <!-- spacer -->
+                <span>My Profile</span>
+                <i class="fa-solid fa-bell notification-icon"></i>
             </div>
+            
             <div class="content-area">
+                <!-- Profile Card -->
+                <div class="profile-header card">
+                    <div class="avatar-large" id="stu-avatar">S</div>
+                    <h2 id="stu-name">Student Name</h2>
+                    <p id="stu-course" style="color: var(--text-muted); font-weight: bold; font-size: 13px;">Course Name</p>
+                    <p style="font-size: 11px; margin-top:5px; color: var(--primary);">Joined: <span id="stu-date"></span></p>
+                </div>
+
+                <!-- Dues Card -->
+                <div class="stat-grid" style="margin-top: 15px;">
+                    <div class="stat-box" id="stu-due-card">
+                        <p>Pending Dues</p>
+                        <h2 id="stu-due-amount">₹0</h2>
+                        <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;">Contact Admin to clear dues.</p>
+                    </div>
+                </div>
+
+                <!-- Student Features -->
+                <p class="section-heading" style="margin-top: 20px;">Study Materials & Downloads</p>
                 <div class="card">
-                    <p class="info-banner">
-                        <i class="fa-solid fa-circle-info text-primary"></i> Eligibility criteria: 8th class and above.
-                    </p>
-                    
-                    <form id="admission-form">
-                        <div class="input-group">
-                            <label>Admission Date</label>
-                            <input type="date" id="reg-date" required>
-                        </div>
-                        <div class="input-group">
-                            <label>Full Name</label>
-                            <input type="text" id="reg-name" required placeholder="Student Name">
-                        </div>
-                        <div class="input-group">
-                            <label>Mobile Number</label>
-                            <input type="tel" id="reg-phone" placeholder="e.g. 6371305069" required>
-                        </div>
-                        <div class="input-group">
-                            <label>Course Selected</label>
-                            <input type="text" id="reg-course" placeholder="e.g. PGDCA or Python" required>
-                        </div>
-                        <div class="input-group">
-                            <label>Total Course Fee (₹)</label>
-                            <input type="number" id="reg-fee" required placeholder="0">
-                        </div>
-                        <div class="input-group">
-                            <label>Advance Paid Today (₹)</label>
-                            <input type="number" id="reg-paid" required placeholder="0">
-                        </div>
-                        <button type="submit" class="btn-primary"><i class="fa-solid fa-save"></i> Save Admission & Sync</button>
-                    </form>
+                    <ul class="download-list" id="stu-downloads">
+                        <!-- Populated by JS -->
+                        <li class="download-item">
+                            <i class="fa-solid fa-file-pdf text-danger"></i>
+                            <div class="dl-info">
+                                <h4>Python Syllabus</h4>
+                                <p>PDF Document</p>
+                            </div>
+                            <button class="btn-dl"><i class="fa-solid fa-download"></i></button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Notice Board -->
+                <p class="section-heading" style="margin-top: 20px;">Institute Notices</p>
+                <div class="card" id="stu-notices">
+                    <p style="color:var(--text-muted); font-size:12px; text-align:center;">No new notices.</p>
                 </div>
             </div>
-            
+
             <div class="bottom-nav">
-                <button class="nav-item" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button>
-                <button class="nav-item" onclick="switchTab('students')"><i class="fa-solid fa-users"></i>Students</button>
+                <button class="nav-item active"><i class="fa-solid fa-user"></i>Profile</button>
                 <button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button>
             </div>
         </div>
-
-        <!-- SCREEN: Student List -->
-        <div id="screen-students" class="screen">
-            <div class="top-app-bar">
-                <span>Student Database</span>
-            </div>
-            <div class="content-area" style="padding: 0;">
-                <div class="card" style="margin: 16px; padding: 0; overflow: hidden;" id="student-list">
-                    <!-- Student items will be populated here -->
-                </div>
-            </div>
-            
-            <div class="bottom-nav">
-                <button class="nav-item" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button>
-                <button class="nav-item active" onclick="switchTab('students')"><i class="fa-solid fa-users"></i>Students</button>
-                <button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button>
-            </div>
-        </div>
-
+        
     </div>
-
-    <!-- Link to external JavaScript -->
     <script src="app.js"></script>
 </body>
 </html>
