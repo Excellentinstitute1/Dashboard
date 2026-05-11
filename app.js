@@ -20,7 +20,6 @@ let analyticsChartInstance = null;
 
 // --- 1. BOOT SEQUENCE & SPLASH SCREEN ---
 document.addEventListener("DOMContentLoaded", () => {
-    // Set default date for admission form
     document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
     bootApplication();
 });
@@ -29,17 +28,14 @@ function bootApplication() {
     const savedRole = localStorage.getItem("ei_role");
     const savedPinEnabled = localStorage.getItem("ei_usePin") === "true";
     
-    // Simulate initial load time to show off splash screen and load assets
     setTimeout(() => {
-        hideLoader(); // Hides the global splash screen smoothly
+        hideLoader(); 
         document.getElementById('app-container').classList.remove('hidden-initially');
         
-        // If PIN is enabled and we have a saved role, show the PIN pad
         if (savedPinEnabled && savedRole) {
             document.getElementById('panel-standard-login').classList.add('hidden-initially');
             document.getElementById('panel-pin-login').classList.remove('hidden-initially');
             
-            // Format welcome text (e.g. "Welcome, Admin")
             const formattedRole = savedRole.charAt(0).toUpperCase() + savedRole.slice(1);
             document.getElementById('pin-welcome-text').innerText = `Welcome, ${formattedRole}`;
         }
@@ -56,9 +52,26 @@ function hideLoader() {
     loader.classList.add('hide'); 
 }
 
-// --- 2. AUTHENTICATION (STANDARD & PIN) ---
+// --- 2. DYNAMIC FEE CALCULATOR (CRITICAL FIX) ---
+// Scans the transaction ledger to find all payments made by a specific student
+function getDynamicPaidFee(student) {
+    let total = 0;
+    if (appData.transactions) {
+        appData.transactions.forEach(tx => {
+            // Only look at income that is NOT Job or Print desk
+            if (tx.type === 'income' && !tx.title.includes('Job Desk:') && !tx.title.includes('Print Desk:')) {
+                // If the transaction title includes the student's ID or Name, count it as their payment
+                if (tx.title.includes(`[${student.id}]`) || tx.title.includes(student.name)) {
+                    total += parseFloat(tx.amount) || 0;
+                }
+            }
+        });
+    }
+    // Return whichever is higher: the recorded advance, or the total calculated from ledger
+    return Math.max(total, parseFloat(student.paidFee) || 0);
+}
 
-// A. Standard Login
+// --- 3. AUTHENTICATION (STANDARD & PIN) ---
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const userid = document.getElementById('userid').value.trim();
@@ -77,7 +90,6 @@ document.getElementById('login-form').addEventListener('submit', async function(
             document.getElementById('login-error').innerText = result.error; 
             document.getElementById('login-error').classList.remove('hidden-initially');
         } else {
-            // Set State
             appState.actualRole = result.role;
             appState.role = result.role; 
             appState.actualUser = result.userProfile;
@@ -85,12 +97,10 @@ document.getElementById('login-form').addEventListener('submit', async function(
             appState.authString = pass;
             appData = result.data; 
             
-            // Handle Remember Me (prepares for PIN setup)
             if (remember) {
                 localStorage.setItem("ei_role", result.role);
                 localStorage.setItem("ei_auth", pass); 
             }
-            
             setupApplicationUI(); 
             hideLoader();
         }
@@ -101,7 +111,6 @@ document.getElementById('login-form').addEventListener('submit', async function(
     }
 });
 
-// B. PIN Unlock Login
 document.getElementById('pin-login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const pin = document.getElementById('pin-input').value;
@@ -118,7 +127,7 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
             hideLoader(); 
             document.getElementById('pin-error').innerText = result.error;
             document.getElementById('pin-error').classList.remove('hidden-initially'); 
-            document.getElementById('pin-input').value = ''; // Clear input on fail
+            document.getElementById('pin-input').value = ''; 
         } else {
             appState.actualRole = result.role; 
             appState.role = result.role; 
@@ -133,30 +142,25 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
     }
 });
 
-// --- 3. UI ROUTING & PERSPECTIVE SWITCHER ---
-
+// --- 4. UI ROUTING & PERSPECTIVE SWITCHER ---
 function setupApplicationUI() {
-    // Hide Login Screen, Show Main Shell
     document.getElementById('screen-login').classList.remove('active');
     document.getElementById('main-header').classList.remove('hidden-initially');
     document.getElementById('main-content').classList.remove('hidden-initially');
     document.getElementById('bottom-nav').classList.remove('hidden-initially');
 
-    // Admin Perspective Logic
     const btnAdminView = document.getElementById('btn-admin-view');
     if (appState.actualRole === 'admin') {
         btnAdminView.classList.remove('hidden-initially');
-        populatePreviewList(); // Fill the student dropdown for preview mode
+        populatePreviewList(); 
     } else {
         btnAdminView.classList.add('hidden-initially');
     }
 
-    // Module Visibility based on CURRENT role being viewed
     document.getElementById('nav-analytics-btn').style.display = (appState.role === 'admin') ? 'flex' : 'none';
     document.getElementById('nav-students-btn').style.display = (appState.role === 'student') ? 'none' : 'flex';
     document.getElementById('admin-staff-modules').style.display = (appState.role === 'student') ? 'none' : 'block';
     
-    // Route to appropriate home screen
     if (appState.role === 'admin' || appState.role === 'staff') {
         document.getElementById('admin-broadcast-panel').style.display = (appState.role === 'admin') ? 'block' : 'none';
         updateDashboardFinancials(); 
@@ -170,16 +174,11 @@ function setupApplicationUI() {
 
 function switchTab(tabId) {
     showLoader();
-    
     setTimeout(() => {
-        // Hide all views & deselect nav buttons
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('#bottom-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
-        
-        // Show target view
         document.getElementById(`view-${tabId}`).classList.add('active');
         
-        // Tab metadata
         const titles = {
             'dashboard': {title: 'Dashboard', sub: 'Financial Overview', nav: 0},
             'students': {title: 'Students', sub: 'Database', nav: 1},
@@ -197,13 +196,12 @@ function switchTab(tabId) {
             if(titles[tabId].nav >= 0) document.querySelectorAll('#bottom-nav .nav-btn')[titles[tabId].nav].classList.add('active');
         }
 
-        // Trigger specific renderers
         if(tabId === 'students') renderStudents();
         if(['job','print','expense'].includes(tabId)) renderList(tabId);
         if(tabId === 'analytics') renderChart();
 
         hideLoader();
-    }, 200); // 200ms delay for smooth transition feel
+    }, 200); 
 }
 
 // --- ADMIN PREVIEW FUNCTIONS ---
@@ -242,17 +240,14 @@ function exitAdminPreview() {
     setupApplicationUI();
 }
 
-// --- 4. DATA SYNCING LOGIC ---
+// --- 5. DATA SYNCING LOGIC ---
 async function syncDatabase(actionDesc) {
-    // SECURITY: Only the ACTUAL admin can ever push data to the server. Staff/Students are blocked.
     if (appState.actualRole !== 'admin') { 
         alert("Action Denied: You do not have Write Permissions."); 
         return false; 
     }
     
     showLoader();
-    
-    // The backend `doPost` specifically requires { password: "admin", data: ... }
     const payload = { password: "admin", data: appData }; 
     
     try {
@@ -263,23 +258,19 @@ async function syncDatabase(actionDesc) {
         });
         const result = await response.json();
         hideLoader();
-        if (result.error) { 
-            alert("Server Sync Error: " + result.error); 
-            return false; 
-        }
+        if (result.error) { alert("Server Sync Error: " + result.error); return false; }
         return true;
     } catch (error) {
-        hideLoader(); 
-        alert("Network error. Database sync failed. Changes may be lost on reload."); 
-        return false;
+        hideLoader(); alert("Network error. Database sync failed."); return false;
     }
 }
 
-// --- 5. NOTIFICATIONS & SETTINGS MODALS ---
+// --- 6. NOTIFICATIONS & SETTINGS MODALS ---
 function checkDuesSilently() {
     let count = 0; 
     appData.students.forEach(st => { 
-        if((st.totalFee - st.paidFee) > 0) count++; 
+        const actualPaid = getDynamicPaidFee(st);
+        if((st.totalFee - actualPaid) > 0) count++; 
     });
     
     const dot = document.getElementById('notif-dot');
@@ -293,7 +284,9 @@ function openNotificationModal() {
     let found = false;
     
     appData.students.forEach(st => {
-        const dues = st.totalFee - st.paidFee;
+        const actualPaid = getDynamicPaidFee(st);
+        const dues = st.totalFee - actualPaid;
+        
         if(dues > 0) {
             found = true;
             listEl.innerHTML += `
@@ -334,8 +327,7 @@ async function promptSetPin() {
     showLoader();
     try {
         const res = await fetch(GAS_URL, { 
-            method: 'POST', 
-            headers: {"Content-Type": "text/plain"}, 
+            method: 'POST', headers: {"Content-Type": "text/plain"}, 
             body: JSON.stringify({action: 'setPin', role: appState.actualRole, pin: pin, auth: masterPass}) 
         });
         const result = await res.json();
@@ -344,38 +336,33 @@ async function promptSetPin() {
         if(result.success) {
             localStorage.setItem("ei_usePin", "true");
             alert("PIN saved successfully! You can use it on your next login.");
-        } else { 
-            alert(result.error); 
-        }
-    } catch(e) { 
-        hideLoader(); 
-        alert("Network error. Could not save PIN."); 
-    }
+        } else { alert(result.error); }
+    } catch(e) { hideLoader(); alert("Network error. Could not save PIN."); }
 }
 
 function clearSavedLogin() {
-    localStorage.removeItem("ei_role"); 
-    localStorage.removeItem("ei_usePin"); 
-    localStorage.removeItem("ei_auth");
-    window.location.reload(); // Hard reset application state
+    localStorage.removeItem("ei_role"); localStorage.removeItem("ei_usePin"); localStorage.removeItem("ei_auth");
+    window.location.reload(); 
 }
 
-// --- 6. STUDENT DETAILS MODAL ---
+// --- 7. STUDENT DETAILS MODAL ---
 function openStudentDetailModal(studentId) {
     if (appState.role === 'student') return; 
     
     const st = appData.students.find(s => s.id === studentId);
     if (!st) return;
 
-    const dues = st.totalFee - st.paidFee;
+    const actualPaid = getDynamicPaidFee(st);
+    const dues = st.totalFee - actualPaid;
     
-    // Check if image exists for the detail modal
+    // Check if Image exists
     const avatarEl = document.getElementById('detail-avatar');
     if (st.image) {
         avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
         avatarEl.style.padding = "0";
     } else {
         avatarEl.innerHTML = st.name.charAt(0).toUpperCase();
+        avatarEl.style.padding = ""; // Reset padding
     }
 
     document.getElementById('detail-name').innerText = st.name;
@@ -385,19 +372,16 @@ function openStudentDetailModal(studentId) {
     document.getElementById('detail-course').innerText = st.course;
     
     document.getElementById('detail-total').innerText = `₹${st.totalFee}`;
-    document.getElementById('detail-paid').innerText = `₹${st.paidFee}`;
+    document.getElementById('detail-paid').innerText = `₹${actualPaid}`;
     document.getElementById('detail-due').innerText = `₹${dues}`;
 
     closeNotificationModal();
-    setTimeout(() => {
-        document.getElementById('modal-student-detail').classList.add('active');
-    }, 100);
+    setTimeout(() => { document.getElementById('modal-student-detail').classList.add('active'); }, 100);
 }
-
 function closeStudentDetailModal() { document.getElementById('modal-student-detail').classList.remove('active'); }
 
 
-// --- 7. FORM SUBMISSIONS ---
+// --- 8. FORM SUBMISSIONS ---
 function recalcStats() {
     appData.stats.income = 0; appData.stats.expense = 0;
     appData.transactions.forEach(tx => {
@@ -408,7 +392,6 @@ function recalcStats() {
     updateDashboardFinancials();
 }
 
-// New Admission
 document.getElementById('admission-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can register students.");
@@ -424,7 +407,7 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     appData.students.unshift({ id: stId, name: name, course: course, totalFee: totalFee, paidFee: advancePaid, phone: phone, date: dateStr });
     
     if (advancePaid > 0) {
-        appData.transactions.push({ id: 'TXN'+Math.floor(Math.random()*90000+10000), type: "income", title: `Admission - ${name}`, amount: advancePaid, date: dateStr });
+        appData.transactions.push({ id: 'TXN'+Math.floor(Math.random()*90000+10000), type: "income", title: `Admission - ${name} [${stId}]`, amount: advancePaid, date: dateStr });
     }
     
     recalcStats();
@@ -439,7 +422,6 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     }
 });
 
-// Generic Income/Expense Forms
 ['job', 'print', 'expense'].forEach(type => {
     const form = document.getElementById(`${type}-form`);
     if(form) {
@@ -463,7 +445,6 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     }
 });
 
-// Admin Broadcast
 async function sendBroadcast() {
     if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can send notices.");
     
@@ -481,7 +462,7 @@ async function sendBroadcast() {
     }
 }
 
-// --- 8. RENDERERS ---
+// --- 9. RENDERERS ---
 function updateDashboardFinancials() {
     document.getElementById('dash-balance').innerText = `₹${appData.stats.balance.toLocaleString('en-IN')}`;
     document.getElementById('dash-income').innerText = `₹${appData.stats.income.toLocaleString('en-IN')}`;
@@ -501,10 +482,11 @@ function renderStudents() {
     }
     
     filtered.forEach(st => {
-        const dues = st.totalFee - st.paidFee;
+        const actualPaid = getDynamicPaidFee(st);
+        const dues = st.totalFee - actualPaid;
         const dueColor = dues > 0 ? 'var(--danger)' : 'var(--success)';
         
-        // Check if image exists in database
+        // Image Check
         const avatarContent = st.image 
             ? `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 14px;">` 
             : st.name.charAt(0).toUpperCase();
@@ -512,7 +494,7 @@ function renderStudents() {
         listEl.innerHTML += `
             <div class="list-item" onclick="openStudentDetailModal('${st.id}')">
                 <div style="display: flex; align-items: center;">
-                    <div class="list-avatar" style="padding: 0; overflow: hidden;">${avatarContent}</div>
+                    <div class="list-avatar" style="${st.image ? 'padding: 0; overflow: hidden;' : ''}">${avatarContent}</div>
                     <div class="list-info">
                         <h4>${st.name}</h4>
                         <p>${st.phone} • ${st.course}</p>
@@ -563,21 +545,26 @@ function renderStudentDashboard() {
     document.getElementById('stu-course').innerText = st.course;
     document.getElementById('stu-date').innerText = st.date;
     
-    // Check if image exists for student profile view
+    // Check if Image exists
     const avatarEl = document.getElementById('stu-avatar');
     if (st.image) {
         avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
         avatarEl.style.padding = "0";
     } else {
         avatarEl.innerHTML = st.name.charAt(0).toUpperCase();
+        avatarEl.style.padding = "";
     }
     
-    const dues = st.totalFee - st.paidFee; 
+    const actualPaid = getDynamicPaidFee(st);
+    const dues = st.totalFee - actualPaid; 
+    
     document.getElementById('stu-due-amount').innerText = `₹${dues}`; 
     document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
-    const noticesEl = document.getElementById('stu-notices'); noticesEl.innerHTML = '';
+    const noticesEl = document.getElementById('stu-notices'); 
+    noticesEl.innerHTML = '';
+    
     if(appData.notices && appData.notices.length > 0) {
         appData.notices.forEach(n => {
             noticesEl.innerHTML += `
