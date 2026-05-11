@@ -1,13 +1,19 @@
 // REPLACE WITH YOUR GOOGLE WEB APP URL
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxFsBuyiWOdTMMGeOgTXhvSmAfUK_uMbdwVO945ejPvnsEOQtX9ZtMCh9RQtBWzHSVj/exec";
 
-let appState = { role: null, currentUser: null, authString: "" };
+let appState = { 
+    actualRole: null,   // The real verified login (admin, staff, student)
+    role: null,         // The currently viewed role (can be changed by Admin)
+    actualUser: null,   // The real user profile (if logged in as student)
+    currentUser: null,  // The currently viewed user profile
+    authString: "" 
+};
+
 let appData = { students: [], transactions: [], stats: { income: 0, expense: 0, balance: 0 }, notices: [] };
 let analyticsChartInstance = null;
 
 // --- 1. BOOT APPLICATION & SPLASH SCREEN ---
 document.addEventListener("DOMContentLoaded", () => {
-    // Set default date for admission form
     document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
     bootApplication();
 });
@@ -17,21 +23,18 @@ function bootApplication() {
     const savedPinEnabled = localStorage.getItem("ei_usePin") === "true";
     
     setTimeout(() => {
-        // Hide global splash screen using the CSS '.hide' class
         const loader = document.getElementById('global-loader');
         if (loader) loader.classList.add('hide');
         
-        // Reveal the app container
         document.getElementById('app-container').classList.remove('hidden-initially');
         
-        // Setup PIN screen if remembered
         if (savedPinEnabled && savedRole) {
             document.getElementById('panel-standard-login').style.display = 'none';
             document.getElementById('panel-pin-login').classList.remove('hidden-initially');
             document.getElementById('panel-pin-login').style.display = 'block';
             document.getElementById('pin-welcome-text').innerText = `Welcome, ${savedRole.charAt(0).toUpperCase() + savedRole.slice(1)}`;
         }
-    }, 1500); // 1.5 seconds loading
+    }, 1500); 
 }
 
 function showLoader() { 
@@ -63,16 +66,22 @@ document.getElementById('login-form').addEventListener('submit', async function(
             document.getElementById('login-error').innerText = result.error; 
             document.getElementById('login-error').classList.remove('hidden-initially');
         } else {
-            appState.role = result.role; appData = result.data; appState.currentUser = result.userProfile; appState.authString = pass;
+            appState.actualRole = result.role;
+            appState.role = result.role; 
+            appState.actualUser = result.userProfile;
+            appState.currentUser = result.userProfile; 
+            appState.authString = pass;
+            appData = result.data; 
             
             if (remember) {
                 localStorage.setItem("ei_role", result.role);
-                localStorage.setItem("ei_auth", pass); // Store for future PIN setups
+                localStorage.setItem("ei_auth", pass); 
             }
             setupApplicationUI(); hideLoader();
         }
     } catch (error) { 
         hideLoader(); 
+        document.getElementById('login-error').innerText = "Network Error.";
         document.getElementById('login-error').classList.remove('hidden-initially'); 
     }
 });
@@ -95,7 +104,9 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
             document.getElementById('pin-error').classList.remove('hidden-initially'); 
             document.getElementById('pin-input').value = '';
         } else {
-            appState.role = result.role; appData = result.data; 
+            appState.actualRole = result.role; 
+            appState.role = result.role; 
+            appData = result.data; 
             setupApplicationUI(); hideLoader();
         }
     } catch (error) { 
@@ -104,7 +115,7 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
     }
 });
 
-// --- 3. UI ROUTING & SETUP ---
+// --- 3. UI ROUTING & ADMIN PREVIEW ---
 function setupApplicationUI() {
     // Reveal app structure
     document.getElementById('screen-login').classList.remove('active');
@@ -112,26 +123,73 @@ function setupApplicationUI() {
     document.getElementById('main-content').classList.remove('hidden-initially');
     document.getElementById('bottom-nav').classList.remove('hidden-initially');
 
-    // Role-specific UI visibility
+    // Admin Perspective Button Logic
+    if (appState.actualRole === 'admin') {
+        const btnAdminView = document.getElementById('btn-admin-view');
+        btnAdminView.classList.remove('hidden-initially');
+        btnAdminView.style.display = 'flex'; // Ensure it is visible
+        populatePreviewList();
+    }
+
+    // Role-specific UI visibility based on CURRENT role
     document.getElementById('nav-analytics-btn').style.display = (appState.role === 'admin') ? 'flex' : 'none';
     document.getElementById('nav-students-btn').style.display = (appState.role === 'student') ? 'none' : 'flex';
     document.getElementById('admin-staff-modules').style.display = (appState.role === 'student') ? 'none' : 'block';
     
-    if (appState.role === 'admin' || appState.role === 'staff') {
-        document.getElementById('btn-setup-pin').classList.remove('hidden-initially');
+    // View Routing
+    if (appState.role === 'admin') {
+        document.getElementById('admin-broadcast-panel').style.display = 'block';
         updateDashboardFinancials(); 
         checkDuesSilently(); 
         switchTab('dashboard');
-    } else {
+    } else if (appState.role === 'staff') {
+        document.getElementById('admin-broadcast-panel').style.display = 'none';
+        updateDashboardFinancials(); 
+        switchTab('dashboard');
+    } else if (appState.role === 'student') {
         renderStudentDashboard(); 
         switchTab('student-dash');
     }
 }
 
-function switchTab(tabId) {
-    // Flash transition for native feel
-    showLoader();
+// Admin "View As" Functions
+function populatePreviewList() {
+    const select = document.getElementById('preview-student-select');
+    select.innerHTML = '<option value="" disabled selected>Select a Student...</option>';
+    if (appData.students) {
+        appData.students.forEach((st, index) => {
+            select.innerHTML += `<option value="${index}">${st.name} (${st.course})</option>`;
+        });
+    }
+}
+
+function openViewSwitcher() { document.getElementById('view-switcher-modal').classList.add('active'); }
+function closeViewSwitcher() { document.getElementById('view-switcher-modal').classList.remove('active'); }
+
+function changeAdminView(targetRole) {
+    if (targetRole === 'student') {
+        const idx = document.getElementById('preview-student-select').value;
+        if (idx === "") return alert("Please select a student to preview.");
+        appState.currentUser = appData.students[idx];
+    } else {
+        appState.currentUser = appState.actualUser; // Reset to self
+    }
     
+    appState.role = targetRole;
+    closeViewSwitcher();
+    document.getElementById('admin-view-banner').classList.remove('hidden-initially');
+    setupApplicationUI(); // Re-trigger UI render
+}
+
+function exitAdminPreview() {
+    appState.role = appState.actualRole;
+    appState.currentUser = appState.actualUser;
+    document.getElementById('admin-view-banner').classList.add('hidden-initially');
+    setupApplicationUI();
+}
+
+function switchTab(tabId) {
+    showLoader();
     setTimeout(() => {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('#bottom-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
@@ -164,7 +222,8 @@ function switchTab(tabId) {
 
 // --- 4. SECURE DATABASE ACTIONS ---
 async function syncDatabase(actionDesc) {
-    if (appState.role !== 'admin') { alert("Action Denied: View Only Mode."); return false; }
+    // Only the ACTUAL admin can write data, regardless of what role they are previewing.
+    if (appState.actualRole !== 'admin') { alert("Action Denied: View Only Mode."); return false; }
     showLoader();
     
     const payload = { password: "admin", data: appData }; 
@@ -202,10 +261,14 @@ function openNotificationModal() {
 }
 function closeNotificationModal() { document.getElementById('modal-notifications').classList.remove('active'); }
 
-function openSettingsModal() { document.getElementById('modal-settings').classList.add('active'); }
+function openSettingsModal() { 
+    if(appState.actualRole === 'admin' || appState.actualRole === 'staff') {
+        document.getElementById('btn-setup-pin').classList.remove('hidden-initially');
+    }
+    document.getElementById('modal-settings').classList.add('active'); 
+}
 function closeSettingsModal() { document.getElementById('modal-settings').classList.remove('active'); }
 
-// PIN Setup
 async function promptSetPin() {
     closeSettingsModal();
     const pin = prompt("Enter a new 4-Digit PIN:");
@@ -216,7 +279,7 @@ async function promptSetPin() {
 
     showLoader();
     try {
-        const res = await fetch(GAS_URL, { method: 'POST', headers: {"Content-Type": "text/plain"}, body: JSON.stringify({action: 'setPin', role: appState.role, pin: pin, auth: masterPass}) });
+        const res = await fetch(GAS_URL, { method: 'POST', headers: {"Content-Type": "text/plain"}, body: JSON.stringify({action: 'setPin', role: appState.actualRole, pin: pin, auth: masterPass}) });
         const result = await res.json();
         hideLoader();
         if(result.success) {
@@ -244,7 +307,7 @@ function recalcStats() {
 
 document.getElementById('admission-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(appState.role !== 'admin') return alert("Admin access required.");
+    if(appState.actualRole !== 'admin') return alert("Admin access required.");
     
     const name = document.getElementById('reg-name').value;
     const phone = document.getElementById('reg-phone').value;
@@ -268,13 +331,12 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     }
 });
 
-// Generic Listeners for Jobs, Print, Expense
 ['job', 'print', 'expense'].forEach(type => {
     const form = document.getElementById(`${type}-form`);
     if(form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            if(appState.role !== 'admin') return alert("Admin access required.");
+            if(appState.actualRole !== 'admin') return alert("Admin access required.");
             
             let title = "", desc = "", amount = 0, txType = "income";
             if (type === 'job') { title = `Job Desk: ${document.getElementById('job-name').value}`; desc = document.getElementById('job-post').value; amount = parseFloat(document.getElementById('job-amount').value); }
@@ -288,9 +350,8 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     }
 });
 
-// Admin Broadcast
 async function sendBroadcast() {
-    if(appState.role !== 'admin') return alert("Admin access required.");
+    if(appState.actualRole !== 'admin') return alert("Admin access required.");
     const title = document.getElementById('bc-title').value; const msg = document.getElementById('bc-msg').value;
     if(!title || !msg) return alert("Enter both title and message.");
     
@@ -340,6 +401,8 @@ function renderList(type) {
 
 function renderStudentDashboard() {
     const st = appState.currentUser;
+    if(!st) return;
+
     document.getElementById('stu-name').innerText = st.name; 
     document.getElementById('stu-avatar').innerText = st.name.charAt(0).toUpperCase(); 
     document.getElementById('stu-course').innerText = st.course;
@@ -347,7 +410,7 @@ function renderStudentDashboard() {
     
     const dues = st.totalFee - st.paidFee; 
     document.getElementById('stu-due-amount').innerText = `₹${dues}`; 
-    document.getElementById('stu-due-card').style.borderLeftColor = dues > 0 ? 'var(--danger)' : 'var(--success)';
+    document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
     const noticesEl = document.getElementById('stu-notices'); noticesEl.innerHTML = '';
