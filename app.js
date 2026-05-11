@@ -1,6 +1,6 @@
 /* ==========================================================================
    EXCELLENT INSTITUTE - CORE APPLICATION LOGIC
-   Handles Auth, State, Routing, File Uploads, Syncing, and Rendering
+   Handles Auth, State, Routing, Permissions, File Uploads, and Rendering
    ========================================================================== */
 
 // 🛑 REPLACE THIS WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
@@ -8,11 +8,11 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbxFsBuyiWOdTMMGeOgTXhvS
 
 // --- GLOBAL STATE ---
 let appState = { 
-    actualRole: null,   
-    role: null,         
-    actualUser: null,   
-    currentUser: null,  
-    authString: ""      
+    actualRole: null,   // The verified login role ('admin', 'staff', 'student')
+    role: null,         // The CURRENT perspective being viewed
+    actualUser: null,   // The verified user profile (if logged in as student)
+    currentUser: null,  // The CURRENT user profile being viewed
+    authString: ""      // Cached password for current session
 };
 
 let appData = { 
@@ -22,12 +22,13 @@ let appData = {
 let analyticsChartInstance = null;
 
 // ==========================================================================
-// 1. BULLETPROOF PULL-TO-REFRESH KILLER (NATIVE APP FEEL)
+// 1. BULLETPROOF PULL-TO-REFRESH KILLER (Double Lock)
 // ==========================================================================
 document.addEventListener('touchmove', function(event) {
-    const isScrollable = event.target.closest('.content-area, .custom-scrollbar, [style*="overflow-y: auto"]');
+    // Only allow native scrolling if the user's finger is inside a designated scroll area
+    const isScrollable = event.target.closest('.content-area, .custom-scrollbar, .modal-scroll-area');
     if (!isScrollable) {
-        event.preventDefault(); 
+        event.preventDefault(); // Kills the iOS/Android bounce effect on the main body
     }
 }, { passive: false });
 
@@ -45,7 +46,8 @@ const fileToBase64 = (file) => new Promise((resolve, reject) => {
 // 3. BOOT SEQUENCE & SPLASH SCREEN
 // ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
+    const regDateEl = document.getElementById('reg-date');
+    if(regDateEl) regDateEl.value = new Date().toISOString().split('T')[0];
     bootApplication();
 });
 
@@ -70,6 +72,7 @@ function bootApplication() {
 function showLoader() { document.getElementById('global-loader').classList.remove('hide'); }
 function hideLoader() { document.getElementById('global-loader').classList.add('hide'); }
 
+// Dynamic Due Calculator (Scans full ledger)
 function getDynamicPaidFee(student) {
     let total = 0;
     if (appData.transactions) {
@@ -179,23 +182,24 @@ function setupApplicationUI() {
         btnAdminView.classList.add('hidden-initially');
     }
 
+    // Role Layout Logic
     document.getElementById('nav-analytics-btn').style.display = (appState.role === 'admin') ? 'flex' : 'none';
     document.getElementById('nav-students-btn').style.display = (appState.role === 'student') ? 'none' : 'flex';
     document.getElementById('admin-staff-modules').style.display = (appState.role === 'student') ? 'none' : 'block';
     
     if (appState.role === 'admin' || appState.role === 'staff') {
-        document.getElementById('admin-broadcast-panel').style.display = 'block'; 
         updateDashboardFinancials(); 
         checkDuesSilently(); 
         switchTab('dashboard');
     } else if (appState.role === 'student') {
         renderStudentDashboard(); 
+        checkDuesSilently();
         switchTab('student-dash');
     }
 }
 
 function switchTab(tabId) {
-    // Reroute students clicking "Home" to their profile instead of admin dashboard
+    // Intercept "Home" button for students to stay out of Admin view
     if (tabId === 'dashboard' && appState.role === 'student') {
         tabId = 'student-dash';
     }
@@ -204,7 +208,9 @@ function switchTab(tabId) {
     setTimeout(() => {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('#bottom-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
-        document.getElementById(`view-${tabId}`).classList.add('active');
+        
+        const targetView = document.getElementById(`view-${tabId}`);
+        if(targetView) targetView.classList.add('active');
         
         const titles = {
             'dashboard': {title: 'Dashboard', sub: 'Financial Overview', nav: 0},
@@ -215,6 +221,7 @@ function switchTab(tabId) {
             'print': {title: 'Print Desk', sub: 'Revenue', nav: -1},
             'expense': {title: 'Expenditure', sub: 'Deductions', nav: -1},
             'uploads': {title: 'File Hub', sub: 'Share Materials & Certs', nav: -1},
+            'broadcast': {title: 'Broadcast', sub: 'Send Alerts & Media', nav: -1},
             
             // Student Specific Routes
             'student-dash': {title: 'My Profile', sub: 'Student Portal', nav: 0},
@@ -232,6 +239,7 @@ function switchTab(tabId) {
         if(tabId === 'students') renderStudents();
         if(['job','print','expense'].includes(tabId)) renderList(tabId);
         if(tabId === 'analytics') renderChart();
+        if(tabId === 'student-dash') renderStudentDashboard();
 
         hideLoader();
     }, 200); 
@@ -239,15 +247,15 @@ function switchTab(tabId) {
 
 function populatePreviewLists() {
     const selectView = document.getElementById('preview-student-select');
-    selectView.innerHTML = '<option value="" disabled selected>Select a Student...</option>';
+    if(selectView) selectView.innerHTML = '<option value="" disabled selected>Select a Student...</option>';
     
     const selectCert = document.getElementById('cert-student');
     if (selectCert) selectCert.innerHTML = '<option value="" disabled selected>Select Student to Issue Cert...</option>';
     
     if (appData.students) {
         appData.students.forEach(st => {
-            selectView.innerHTML += `<option value="${st.id}">${st.name} (${st.course})</option>`;
-            if (selectCert) selectCert.innerHTML += `<option value="${st.id}">${st.name} (${st.course})</option>`;
+            if(selectView) selectView.innerHTML += `<option value="${st.id}">${st.name} (${st.course})</option>`;
+            if(selectCert) selectCert.innerHTML += `<option value="${st.id}">${st.name} (${st.course})</option>`;
         });
     }
 }
@@ -281,8 +289,11 @@ function exitAdminPreview() {
 // 6. DATA SYNCING LOGIC
 // ==========================================================================
 async function syncDatabase(actionDesc) {
-    if (appState.actualRole !== 'admin') { 
-        alert("Action Denied: You do not have Write Permissions."); 
+    // Only Admin can write to database, EXCEPT Staff can write Materials and Notices
+    const isStaffPermittedAction = (actionDesc === "Upload Material" || actionDesc === "Broadcast Notice");
+    
+    if (appState.actualRole === 'student' || (appState.actualRole === 'staff' && !isStaffPermittedAction)) { 
+        alert("Action Denied: You do not have permission to modify this data."); 
         return false; 
     }
     
@@ -303,7 +314,7 @@ async function syncDatabase(actionDesc) {
 }
 
 // ==========================================================================
-// 7. MODALS (HISTORY, NOTIFICATIONS, SETTINGS, STUDENT DETAILS)
+// 7. MODALS (HISTORY, NOTIFICATIONS, DETAILS, EDIT)
 // ==========================================================================
 function openHistoryModal(type) {
     const container = document.getElementById('history-list-container');
@@ -335,16 +346,12 @@ function closeHistoryModal() { document.getElementById('modal-history').classLis
 
 function checkDuesSilently() {
     let count = 0; 
-    
     if (appState.role === 'student') {
         const actualPaid = getDynamicPaidFee(appState.currentUser);
         if((appState.currentUser.totalFee - actualPaid) > 0) count++;
     } else {
-        appData.students.forEach(st => { 
-            if((st.totalFee - getDynamicPaidFee(st)) > 0) count++; 
-        });
+        appData.students.forEach(st => { if((st.totalFee - getDynamicPaidFee(st)) > 0) count++; });
     }
-    
     const dot = document.getElementById('notif-dot');
     if(count > 0) dot.classList.remove('hidden-initially'); else dot.classList.add('hidden-initially');
 }
@@ -355,7 +362,7 @@ function openNotificationModal() {
     let found = false;
     
     if (appState.role === 'student') {
-        // Students only see their OWN dues
+        // Students ONLY see their own dues
         const actualPaid = getDynamicPaidFee(appState.currentUser);
         const dues = appState.currentUser.totalFee - actualPaid;
         if(dues > 0) {
@@ -368,14 +375,14 @@ function openNotificationModal() {
                 </div>`;
         }
     } else {
-        // Admins see ALL students dues
+        // Admins see everyone's dues
         appData.students.forEach(st => {
             const actualPaid = getDynamicPaidFee(st);
             const dues = st.totalFee - actualPaid;
             if(dues > 0) {
                 found = true;
                 listEl.innerHTML += `
-                    <div class="flex justify-between items-center py-4 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition" onclick="openStudentDetailModal('${st.id}')">
+                    <div class="flex justify-between items-center py-4 border-b border-slate-200 last:border-0 cursor-pointer hover:bg-slate-50 transition" onclick="openStudentDetailModal('${st.id}')">
                         <div><p style="font-weight: 800; font-size: 0.9rem; color: var(--text-heading);">${st.name}</p><p style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${st.phone}</p></div>
                         <div class="text-right"><span style="font-size: 0.6rem; color: var(--danger); font-weight: 800; text-transform: uppercase;">Due</span><p style="font-weight: 900; font-size: 1.1rem; color: var(--danger);">₹${dues}</p></div>
                     </div>`;
@@ -389,17 +396,16 @@ function openNotificationModal() {
 }
 function closeNotificationModal() { document.getElementById('modal-notifications').classList.remove('active'); }
 
+// Settings & Auth
 function openSettingsModal() { 
     if(appState.actualRole === 'admin' || appState.actualRole === 'staff') { document.getElementById('btn-setup-pin').classList.remove('hidden-initially'); }
     document.getElementById('modal-settings').classList.add('active'); 
 }
 function closeSettingsModal() { document.getElementById('modal-settings').classList.remove('active'); }
-
 async function promptSetPin() {
     closeSettingsModal();
     const pin = prompt("Enter a new 4-Digit PIN for quick access:");
     if(!pin || !/^\d{4}$/.test(pin)) return alert("PIN must be exactly 4 numbers.");
-    
     const masterPass = prompt("Enter Master Admin Password to authorize this security change:");
     if(!masterPass) return;
 
@@ -411,18 +417,17 @@ async function promptSetPin() {
         if(result.success) { localStorage.setItem("ei_usePin", "true"); alert("PIN saved successfully!"); } else { alert(result.error); }
     } catch(e) { hideLoader(); alert("Network error. Could not save PIN."); }
 }
+function clearSavedLogin() { localStorage.removeItem("ei_role"); localStorage.removeItem("ei_usePin"); localStorage.removeItem("ei_auth"); window.location.reload(); }
 
-function clearSavedLogin() {
-    localStorage.removeItem("ei_role"); localStorage.removeItem("ei_usePin"); localStorage.removeItem("ei_auth");
-    window.location.reload(); 
-}
-
+// --- STUDENT DETAILS MODAL ---
 function openStudentDetailModal(studentId) {
     if (appState.role === 'student') return; 
     
     const st = appData.students.find(s => s.id === studentId);
     if (!st) return;
 
+    appState.currentUser = st; // Save context for Edit Function
+    
     const actualPaid = getDynamicPaidFee(st);
     const dues = st.totalFee - actualPaid;
     
@@ -445,12 +450,17 @@ function openStudentDetailModal(studentId) {
     const stuTx = appData.transactions.filter(tx => tx.type === 'income' && !tx.title.includes('Job Desk:') && !tx.title.includes('Print Desk:') && (tx.title.includes(`[${st.id}]`) || tx.title.includes(st.name)));
     
     if (stuTx.length === 0) {
-        if (st.paidFee > 0) historyContainer.innerHTML = `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px;"><div class="list-info"><h4 style="font-size:0.8rem;">Initial Advance</h4><p style="font-size:0.65rem;">${st.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${st.paidFee}</h3></div></div>`;
+        if (st.paidFee > 0) historyContainer.innerHTML = `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px; animation: none;"><div class="list-info"><h4 style="font-size:0.8rem;">Initial Advance</h4><p style="font-size:0.65rem;">${st.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${st.paidFee}</h3></div></div>`;
         else historyContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 10px;">No payments recorded.</p>`;
     } else {
         stuTx.slice().reverse().forEach(tx => {
-            historyContainer.innerHTML += `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px;"><div class="list-info"><h4 style="font-size:0.8rem;">Fee Payment</h4><p style="font-size:0.65rem;">${tx.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${tx.amount}</h3></div></div>`;
+            historyContainer.innerHTML += `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px; animation: none;"><div class="list-info"><h4 style="font-size:0.8rem;">Fee Payment</h4><p style="font-size:0.65rem;">${tx.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${tx.amount}</h3></div></div>`;
         });
+    }
+
+    // Show Edit Button only for True Admins
+    if(appState.actualRole === 'admin') {
+        document.getElementById('btn-edit-student-trigger').classList.remove('hidden-initially');
     }
 
     closeNotificationModal();
@@ -458,12 +468,53 @@ function openStudentDetailModal(studentId) {
 }
 function closeStudentDetailModal() { document.getElementById('modal-student-detail').classList.remove('active'); }
 
+// --- EDIT STUDENT MODAL (ADMIN ONLY) ---
+function openEditStudentModal() {
+    const st = appState.currentUser;
+    if(!st) return;
+    
+    document.getElementById('edit-st-id').value = st.id;
+    document.getElementById('edit-st-name').value = st.name;
+    document.getElementById('edit-st-phone').value = st.phone;
+    document.getElementById('edit-st-course').value = st.course;
+    document.getElementById('edit-st-fee').value = st.totalFee;
+    document.getElementById('edit-st-paid').value = st.paidFee || 0; // Load base advance paid
+    
+    document.getElementById('modal-edit-student').classList.add('active');
+}
+function closeEditStudentModal() { document.getElementById('modal-edit-student').classList.remove('active'); }
+
+document.getElementById('edit-student-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if(appState.actualRole !== 'admin') return alert("Action Denied.");
+    
+    const targetId = document.getElementById('edit-st-id').value;
+    const studentIndex = appData.students.findIndex(s => s.id === targetId);
+    
+    if (studentIndex > -1) {
+        appData.students[studentIndex].name = document.getElementById('edit-st-name').value;
+        appData.students[studentIndex].phone = document.getElementById('edit-st-phone').value;
+        appData.students[studentIndex].course = document.getElementById('edit-st-course').value;
+        appData.students[studentIndex].totalFee = parseFloat(document.getElementById('edit-st-fee').value);
+        appData.students[studentIndex].paidFee = parseFloat(document.getElementById('edit-st-paid').value);
+        
+        if(await syncDatabase("Edit Student Details")) {
+            alert("Student Profile Updated!");
+            closeEditStudentModal();
+            openStudentDetailModal(targetId); // Refresh underlying detail modal
+            if(appState.role === 'admin') renderStudents(); // Refresh background list if visible
+        }
+    }
+});
+
+
 // ==========================================================================
-// 8. FILE UPLOADS & BROADCASTS
+// 8. FILE UPLOADS & BROADCASTS (Staff & Admin)
 // ==========================================================================
 document.getElementById('upload-material-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can upload materials.");
+    // Both Admin and Staff can upload study materials
+    if(appState.actualRole !== 'admin' && appState.actualRole !== 'staff') return alert("Action Denied.");
     
     const title = document.getElementById('mat-title').value;
     const course = document.getElementById('mat-course').value;
@@ -510,20 +561,18 @@ document.getElementById('upload-cert-form').addEventListener('submit', async fun
     } catch(err) { hideLoader(); alert("Error processing file. Try a smaller file."); }
 });
 
-async function sendBroadcast() {
+document.getElementById('broadcast-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
     if(appState.actualRole !== 'admin' && appState.actualRole !== 'staff') return alert("Action Denied.");
     
     const title = document.getElementById('bc-title').value; 
     const msg = document.getElementById('bc-msg').value;
     const fileInput = document.getElementById('bc-media');
     
-    if(!title || !msg) return alert("Please enter both a title and message.");
-    
     showLoader();
     try {
         let mediaBase64 = null;
         let mediaType = null;
-        
         if (fileInput.files[0]) {
             mediaBase64 = await fileToBase64(fileInput.files[0]);
             mediaType = fileInput.files[0].type;
@@ -536,16 +585,14 @@ async function sendBroadcast() {
         
         if(await syncDatabase("Broadcast Notice")) {
             alert("Notice broadcasted to all students!"); 
-            document.getElementById('bc-title').value = ''; 
-            document.getElementById('bc-msg').value = '';
-            fileInput.value = '';
+            this.reset();
             document.getElementById('bc-media-name').innerText = 'Attach Photo/Video (Optional)';
         }
     } catch (error) { hideLoader(); alert("Failed to attach media. File might be too large."); }
-}
+});
 
 // ==========================================================================
-// 9. STANDARD FORM SUBMISSIONS
+// 9. STANDARD ADMIN FORM SUBMISSIONS
 // ==========================================================================
 function recalcStats() {
     appData.stats.income = 0; appData.stats.expense = 0;
@@ -559,7 +606,7 @@ function recalcStats() {
 
 document.getElementById('admission-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(appState.actualRole !== 'admin') return alert("Action Denied.");
+    if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can register students.");
     
     const name = document.getElementById('reg-name').value;
     const phone = document.getElementById('reg-phone').value;
@@ -591,7 +638,7 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     if(form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            if(appState.actualRole !== 'admin') return alert("Action Denied.");
+            if(appState.actualRole !== 'admin') return alert("Action Denied: Financial tasks are Admin only.");
             let title = "", desc = "", amount = 0, txType = "income";
             if (type === 'job') { title = `Job Desk: ${document.getElementById('job-name').value}`; desc = document.getElementById('job-post').value; amount = parseFloat(document.getElementById('job-amount').value); }
             if (type === 'print') { title = `Print Desk: ${document.getElementById('print-service').value}`; amount = parseFloat(document.getElementById('print-amount').value); }
@@ -605,7 +652,7 @@ document.getElementById('admission-form').addEventListener('submit', async funct
 });
 
 // ==========================================================================
-// 10. RENDERERS (Updates specific lists)
+// 10. RENDERERS
 // ==========================================================================
 function updateDashboardFinancials() {
     document.getElementById('dash-balance').innerText = `₹${appData.stats.balance.toLocaleString('en-IN')}`;
@@ -660,7 +707,7 @@ function renderStudentDashboard() {
     const st = appState.currentUser;
     if(!st) return;
 
-    // Profile Details
+    // Profile Top Header
     document.getElementById('stu-name').innerText = st.name; 
     document.getElementById('stu-course').innerText = st.course;
     document.getElementById('stu-date').innerText = st.date;
@@ -668,16 +715,14 @@ function renderStudentDashboard() {
     if (st.image) { avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`; avatarEl.style.padding = "0"; } 
     else { avatarEl.innerHTML = st.name.charAt(0).toUpperCase(); avatarEl.style.padding = ""; }
     
-    // Dues
+    // Dues Banner
     const actualPaid = getDynamicPaidFee(st);
     const dues = st.totalFee - actualPaid; 
     document.getElementById('stu-due-amount').innerText = `₹${dues}`; 
     document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
-    // Populating isolated sub-views correctly mapping to IDs in HTML
-    
-    // 1. My Certificates
+    // 1. My Certificates Panel
     const certCtn = document.getElementById('stu-certs-list');
     const myCerts = (appData.certificates || []).filter(c => c.studentId === st.id);
     if(myCerts.length > 0) {
@@ -686,9 +731,9 @@ function renderStudentDashboard() {
                 <div class="flex items-center"><i class="fa-solid fa-award text-2xl text-emerald-500 mr-4"></i><div><h4 style="font-weight: 800; font-size: 0.9rem;">Course Certificate</h4><p style="font-size: 0.7rem; color: var(--text-muted);">${c.date}</p></div></div>
                 <a href="${c.file}" download="${c.filename}" class="btn-primary" style="width: auto; padding: 10px 16px; font-size: 0.8rem; background: var(--success);"><i class="fa-solid fa-download"></i></a>
             </div>`).join('');
-    } else { certCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700;">No certificates issued yet.</p>'; }
+    } else { certCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700; margin-top: 20px;">No certificates issued yet.</p>'; }
 
-    // 2. Study Materials
+    // 2. Study Materials Panel
     const matCtn = document.getElementById('stu-materials-list');
     const myMats = (appData.materials || []).filter(m => m.course.toLowerCase() === 'all' || m.course.toLowerCase() === st.course.toLowerCase());
     if(myMats.length > 0) {
@@ -697,9 +742,9 @@ function renderStudentDashboard() {
                 <div class="flex items-center"><i class="fa-solid fa-file-pdf text-2xl text-indigo-500 mr-4"></i><div style="max-width: 180px;"><h4 style="font-weight: 800; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.title}</h4><p style="font-size: 0.7rem; color: var(--text-muted);">${m.date}</p></div></div>
                 <a href="${m.file}" download="${m.filename}" class="btn-primary" style="width: auto; padding: 10px 16px; font-size: 0.8rem;"><i class="fa-solid fa-download"></i></a>
             </div>`).join('');
-    } else { matCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700;">No materials available.</p>'; }
+    } else { matCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700; margin-top: 20px;">No materials available.</p>'; }
 
-    // 3. Notice Board
+    // 3. Notice Board Panel
     const noticesEl = document.getElementById('stu-notices-list'); 
     noticesEl.innerHTML = '';
     if(appData.notices && appData.notices.length > 0) {
@@ -713,14 +758,14 @@ function renderStudentDashboard() {
                 }
             }
             noticesEl.innerHTML += `
-                <div class="premium-card p-4">
-                    <h4 style="font-size: 0.95rem; font-weight: 900; color: var(--primary);">${n.title}</h4>
-                    <p style="font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-top: 4px;">${n.message}</p>
+                <div class="premium-card p-5">
+                    <h4 style="font-size: 1.05rem; font-weight: 900; color: var(--primary);">${n.title}</h4>
+                    <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin-top: 6px;">${n.message}</p>
                     ${mediaHtml}
-                    <p style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); margin-top: 8px; text-transform: uppercase;">${n.date}</p>
+                    <p style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); margin-top: 12px; text-transform: uppercase;">${n.date}</p>
                 </div>`;
         });
-    } else { noticesEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; font-weight: 700;">No notices from the Institute.</p>'; }
+    } else { noticesEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; font-weight: 700; margin-top: 20px;">No notices from the Institute.</p>'; }
 }
 
 function renderChart() {
