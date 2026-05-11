@@ -1,6 +1,6 @@
 /* ==========================================================================
    EXCELLENT INSTITUTE - CORE APPLICATION LOGIC
-   Handles Auth, State, Routing, Syncing, and Rendering
+   Handles Auth, State, Routing, File Uploads, Syncing, and Rendering
    ========================================================================== */
 
 // 🛑 REPLACE THIS WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
@@ -15,23 +15,38 @@ let appState = {
     authString: ""      // Cached password for current session
 };
 
-let appData = { students: [], transactions: [], stats: { income: 0, expense: 0, balance: 0 }, notices: [] };
+// Expanded Data Model to include materials and certificates
+let appData = { 
+    students: [], transactions: [], stats: { income: 0, expense: 0, balance: 0 }, 
+    notices: [], materials: [], certificates: [] 
+};
 let analyticsChartInstance = null;
 
 // ==========================================================================
 // 1. BULLETPROOF PULL-TO-REFRESH KILLER (NATIVE APP FEEL)
 // ==========================================================================
 document.addEventListener('touchmove', function(event) {
-    // Only allow scrolling if the touch is inside a designated scrollable container
+    // Only allow vertical scrolling if the touch is explicitly inside a scrollable container
     const isScrollable = event.target.closest('.content-area, .custom-scrollbar, [style*="overflow-y: auto"]');
     if (!isScrollable) {
-        event.preventDefault(); // Kills the bounce effect on the main body
+        event.preventDefault(); // Kills the iOS/Android bounce effect on the main body
     }
 }, { passive: false });
 
+// ==========================================================================
+// 2. HELPER FUNCTIONS (Base64 File Encoding)
+// ==========================================================================
+// Converts uploaded files (PDF, Images) into strings so they can be saved in Google Sheets
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+});
+
 
 // ==========================================================================
-// 2. BOOT SEQUENCE & SPLASH SCREEN
+// 3. BOOT SEQUENCE & SPLASH SCREEN
 // ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
@@ -56,15 +71,8 @@ function bootApplication() {
     }, 1500); 
 }
 
-function showLoader() { 
-    const loader = document.getElementById('global-loader');
-    loader.classList.remove('hide'); 
-}
-
-function hideLoader() { 
-    const loader = document.getElementById('global-loader');
-    loader.classList.add('hide'); 
-}
+function showLoader() { document.getElementById('global-loader').classList.remove('hide'); }
+function hideLoader() { document.getElementById('global-loader').classList.add('hide'); }
 
 // Dynamic Due Calculator (Scans full ledger)
 function getDynamicPaidFee(student) {
@@ -81,8 +89,9 @@ function getDynamicPaidFee(student) {
     return Math.max(total, parseFloat(student.paidFee) || 0);
 }
 
+
 // ==========================================================================
-// 3. AUTHENTICATION (STANDARD & PIN)
+// 4. AUTHENTICATION (STANDARD & PIN)
 // ==========================================================================
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -109,12 +118,15 @@ document.getElementById('login-form').addEventListener('submit', async function(
             appState.authString = pass;
             appData = result.data; 
             
+            // Safety fallback for new data arrays
+            if(!appData.materials) appData.materials = [];
+            if(!appData.certificates) appData.certificates = [];
+            
             if (remember) {
                 localStorage.setItem("ei_role", result.role);
                 localStorage.setItem("ei_auth", pass); 
             }
-            setupApplicationUI(); 
-            hideLoader();
+            setupApplicationUI(); hideLoader();
         }
     } catch (error) { 
         hideLoader(); 
@@ -144,8 +156,11 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
             appState.actualRole = result.role; 
             appState.role = result.role; 
             appData = result.data; 
-            setupApplicationUI(); 
-            hideLoader();
+            
+            if(!appData.materials) appData.materials = [];
+            if(!appData.certificates) appData.certificates = [];
+            
+            setupApplicationUI(); hideLoader();
         }
     } catch (error) { 
         hideLoader(); 
@@ -156,7 +171,7 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
 
 
 // ==========================================================================
-// 4. UI ROUTING & PERSPECTIVE SWITCHER
+// 5. UI ROUTING & PERSPECTIVE SWITCHER
 // ==========================================================================
 function setupApplicationUI() {
     document.getElementById('screen-login').classList.remove('active');
@@ -167,17 +182,18 @@ function setupApplicationUI() {
     const btnAdminView = document.getElementById('btn-admin-view');
     if (appState.actualRole === 'admin') {
         btnAdminView.classList.remove('hidden-initially');
-        populatePreviewList(); 
+        populatePreviewLists(); 
     } else {
         btnAdminView.classList.add('hidden-initially');
     }
 
+    // Role Visibility Routing
     document.getElementById('nav-analytics-btn').style.display = (appState.role === 'admin') ? 'flex' : 'none';
     document.getElementById('nav-students-btn').style.display = (appState.role === 'student') ? 'none' : 'flex';
     document.getElementById('admin-staff-modules').style.display = (appState.role === 'student') ? 'none' : 'block';
     
     if (appState.role === 'admin' || appState.role === 'staff') {
-        document.getElementById('admin-broadcast-panel').style.display = (appState.role === 'admin') ? 'block' : 'none';
+        document.getElementById('admin-broadcast-panel').style.display = 'block'; 
         updateDashboardFinancials(); 
         checkDuesSilently(); 
         switchTab('dashboard');
@@ -202,6 +218,7 @@ function switchTab(tabId) {
             'job': {title: 'Job Desk', sub: 'Applications', nav: -1},
             'print': {title: 'Print Desk', sub: 'Revenue', nav: -1},
             'expense': {title: 'Expenditure', sub: 'Deductions', nav: -1},
+            'uploads': {title: 'File Hub', sub: 'Share Materials & Certs', nav: -1},
             'student-dash': {title: 'My Profile', sub: 'Student Portal', nav: 0}
         };
         
@@ -219,13 +236,19 @@ function switchTab(tabId) {
     }, 200); 
 }
 
-// --- ADMIN PREVIEW FUNCTIONS ---
-function populatePreviewList() {
-    const select = document.getElementById('preview-student-select');
-    select.innerHTML = '<option value="" disabled selected>Select a Student...</option>';
+function populatePreviewLists() {
+    // Populate Admin View Dropdown
+    const selectView = document.getElementById('preview-student-select');
+    selectView.innerHTML = '<option value="" disabled selected>Select a Student...</option>';
+    
+    // Populate Certificate Issue Dropdown
+    const selectCert = document.getElementById('cert-student');
+    if (selectCert) selectCert.innerHTML = '<option value="" disabled selected>Select Student to Issue Cert...</option>';
+    
     if (appData.students) {
-        appData.students.forEach((st, index) => {
-            select.innerHTML += `<option value="${st.id}">${st.name} (${st.course})</option>`;
+        appData.students.forEach(st => {
+            selectView.innerHTML += `<option value="${st.id}">${st.name} (${st.course})</option>`;
+            if (selectCert) selectCert.innerHTML += `<option value="${st.id}">${st.name} (${st.course})</option>`;
         });
     }
 }
@@ -257,7 +280,7 @@ function exitAdminPreview() {
 
 
 // ==========================================================================
-// 5. DATA SYNCING LOGIC
+// 6. DATA SYNCING LOGIC
 // ==========================================================================
 async function syncDatabase(actionDesc) {
     if (appState.actualRole !== 'admin') { 
@@ -285,41 +308,55 @@ async function syncDatabase(actionDesc) {
 
 
 // ==========================================================================
-// 6. MODALS (NOTIFICATIONS, SETTINGS, HISTORY, STUDENT DETAILS)
+// 7. MODALS (HISTORY, NOTIFICATIONS, SETTINGS, STUDENT DETAILS)
 // ==========================================================================
+function openHistoryModal(type) {
+    const container = document.getElementById('history-list-container');
+    const title = document.getElementById('history-modal-title');
+    container.innerHTML = '';
+    
+    let filtered = [];
+    if (type === 'income') { title.innerText = "Total Income History"; filtered = appData.transactions.filter(t => t.type === 'income'); } 
+    else if (type === 'expense') { title.innerText = "Total Expense History"; filtered = appData.transactions.filter(t => t.type === 'expense'); } 
+    else { title.innerText = "Complete Ledger"; filtered = appData.transactions; }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No transactions found.</p>`;
+    } else {
+        filtered.slice().reverse().forEach(tx => {
+            const isInc = tx.type === 'income';
+            const color = isInc ? 'var(--success)' : 'var(--danger)';
+            const sign = isInc ? '+' : '-';
+            container.innerHTML += `
+                <div class="list-item" style="padding: 14px 18px; margin-bottom: 8px;">
+                    <div class="list-info"><h4 style="font-size: 0.95rem;">${tx.title.replace('Job Desk: ','').replace('Print Desk: ','')}</h4><p style="font-size: 0.7rem;">${tx.date}</p></div>
+                    <div class="list-value"><h3 style="color: ${color}; font-size: 1.15rem;">${sign}₹${tx.amount}</h3></div>
+                </div>`;
+        });
+    }
+    document.getElementById('modal-history').classList.add('active');
+}
+function closeHistoryModal() { document.getElementById('modal-history').classList.remove('active'); }
+
 function checkDuesSilently() {
     let count = 0; 
-    appData.students.forEach(st => { 
-        const actualPaid = getDynamicPaidFee(st);
-        if((st.totalFee - actualPaid) > 0) count++; 
-    });
-    
+    appData.students.forEach(st => { if((st.totalFee - getDynamicPaidFee(st)) > 0) count++; });
     const dot = document.getElementById('notif-dot');
-    if(count > 0) dot.classList.remove('hidden-initially');
-    else dot.classList.add('hidden-initially');
+    if(count > 0) dot.classList.remove('hidden-initially'); else dot.classList.add('hidden-initially');
 }
 
 function openNotificationModal() {
-    const listEl = document.getElementById('notif-list-details'); 
-    listEl.innerHTML = '';
+    const listEl = document.getElementById('notif-list-details'); listEl.innerHTML = '';
     let found = false;
     
     appData.students.forEach(st => {
-        const actualPaid = getDynamicPaidFee(st);
-        const dues = st.totalFee - actualPaid;
-        
+        const dues = st.totalFee - getDynamicPaidFee(st);
         if(dues > 0) {
             found = true;
             listEl.innerHTML += `
-                <div class="flex justify-between items-center py-4 border-b border-slate-100 last:border-0" onclick="openStudentDetailModal('${st.id}')">
-                    <div>
-                        <p style="font-weight: 800; font-size: 0.9rem; color: var(--text-heading);">${st.name}</p>
-                        <p style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 2px;">${st.phone}</p>
-                    </div>
-                    <div class="text-right">
-                        <span style="font-size: 0.6rem; color: var(--danger); font-weight: 800; text-transform: uppercase;">Due</span>
-                        <p style="font-weight: 900; font-size: 1.1rem; color: var(--danger);">₹${dues}</p>
-                    </div>
+                <div class="flex justify-between items-center py-4 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition" onclick="openStudentDetailModal('${st.id}')">
+                    <div><p style="font-weight: 800; font-size: 0.9rem; color: var(--text-heading);">${st.name}</p><p style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">${st.phone}</p></div>
+                    <div class="text-right"><span style="font-size: 0.6rem; color: var(--danger); font-weight: 800; text-transform: uppercase;">Due</span><p style="font-weight: 900; font-size: 1.1rem; color: var(--danger);">₹${dues}</p></div>
                 </div>`;
         }
     });
@@ -330,118 +367,11 @@ function openNotificationModal() {
 function closeNotificationModal() { document.getElementById('modal-notifications').classList.remove('active'); }
 
 function openSettingsModal() { 
-    if(appState.actualRole === 'admin' || appState.actualRole === 'staff') {
-        document.getElementById('btn-setup-pin').classList.remove('hidden-initially');
-    }
+    if(appState.actualRole === 'admin' || appState.actualRole === 'staff') { document.getElementById('btn-setup-pin').classList.remove('hidden-initially'); }
     document.getElementById('modal-settings').classList.add('active'); 
 }
 function closeSettingsModal() { document.getElementById('modal-settings').classList.remove('active'); }
 
-// HISTORY MODAL (For Dashboard Clicks)
-function openHistoryModal(type) {
-    const container = document.getElementById('history-list-container');
-    const title = document.getElementById('history-modal-title');
-    container.innerHTML = '';
-    
-    let filtered = [];
-    if (type === 'income') {
-        title.innerText = "Total Income History";
-        filtered = appData.transactions.filter(t => t.type === 'income');
-    } else if (type === 'expense') {
-        title.innerText = "Total Expense History";
-        filtered = appData.transactions.filter(t => t.type === 'expense');
-    } else {
-        title.innerText = "Complete Ledger";
-        filtered = appData.transactions;
-    }
-
-    if (filtered.length === 0) {
-        container.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No transactions found.</p>`;
-    } else {
-        filtered.slice().reverse().forEach(tx => {
-            const isInc = tx.type === 'income';
-            const color = isInc ? 'var(--success)' : 'var(--danger)';
-            const sign = isInc ? '+' : '-';
-            container.innerHTML += `
-                <div class="list-item" style="padding: 12px 16px; margin-bottom: 8px;">
-                    <div class="list-info">
-                        <h4 style="font-size: 0.9rem;">${tx.title.replace('Job Desk: ','').replace('Print Desk: ','')}</h4>
-                        <p style="font-size: 0.65rem;">${tx.date}</p>
-                    </div>
-                    <div class="list-value">
-                        <h3 style="color: ${color}; font-size: 1.1rem;">${sign}₹${tx.amount}</h3>
-                    </div>
-                </div>`;
-        });
-    }
-    document.getElementById('modal-history').classList.add('active');
-}
-function closeHistoryModal() { document.getElementById('modal-history').classList.remove('active'); }
-
-// STUDENT DETAIL MODAL
-function openStudentDetailModal(studentId) {
-    if (appState.role === 'student') return; 
-    
-    const st = appData.students.find(s => s.id === studentId);
-    if (!st) return;
-
-    const actualPaid = getDynamicPaidFee(st);
-    const dues = st.totalFee - actualPaid;
-    
-    // Avatar
-    const avatarEl = document.getElementById('detail-avatar');
-    if (st.image) {
-        avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
-        avatarEl.style.padding = "0";
-    } else {
-        avatarEl.innerHTML = st.name.charAt(0).toUpperCase();
-        avatarEl.style.padding = ""; 
-    }
-
-    // Basic Info
-    document.getElementById('detail-name').innerText = st.name;
-    document.getElementById('detail-id').innerText = `ID: ${st.id}`;
-    document.getElementById('detail-phone').innerText = st.phone;
-    document.getElementById('detail-date').innerText = st.date;
-    document.getElementById('detail-course').innerText = st.course;
-    
-    document.getElementById('detail-total').innerText = `₹${st.totalFee}`;
-    document.getElementById('detail-paid').innerText = `₹${actualPaid}`;
-    document.getElementById('detail-due').innerText = `₹${dues}`;
-
-    // Populating Payment History Ledger for this specific student
-    const historyContainer = document.getElementById('detail-history-list');
-    historyContainer.innerHTML = '';
-    
-    const stuTx = appData.transactions.filter(tx => tx.type === 'income' && !tx.title.includes('Job Desk:') && !tx.title.includes('Print Desk:') && (tx.title.includes(`[${st.id}]`) || tx.title.includes(st.name)));
-    
-    if (stuTx.length === 0) {
-        if (st.paidFee > 0) {
-            historyContainer.innerHTML = `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px;"><div class="list-info"><h4 style="font-size:0.8rem;">Initial Advance</h4><p style="font-size:0.65rem;">${st.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${st.paidFee}</h3></div></div>`;
-        } else {
-            historyContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 10px;">No payments recorded.</p>`;
-        }
-    } else {
-        stuTx.slice().reverse().forEach(tx => {
-            historyContainer.innerHTML += `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px;"><div class="list-info"><h4 style="font-size:0.8rem;">Fee Payment</h4><p style="font-size:0.65rem;">${tx.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${tx.amount}</h3></div></div>`;
-        });
-    }
-
-    // Admin Controls within Student Modal
-    const editBtn = document.getElementById('btn-edit-student');
-    if (appState.actualRole === 'admin') {
-        editBtn.classList.remove('hidden-initially');
-        editBtn.onclick = () => alert("Student Edit feature coming in next update!"); // Placeholder action
-    } else {
-        editBtn.classList.add('hidden-initially');
-    }
-
-    closeNotificationModal();
-    setTimeout(() => { document.getElementById('modal-student-detail').classList.add('active'); }, 100);
-}
-function closeStudentDetailModal() { document.getElementById('modal-student-detail').classList.remove('active'); }
-
-// PIN Set & Logout
 async function promptSetPin() {
     closeSettingsModal();
     const pin = prompt("Enter a new 4-Digit PIN for quick access:");
@@ -452,17 +382,10 @@ async function promptSetPin() {
 
     showLoader();
     try {
-        const res = await fetch(GAS_URL, { 
-            method: 'POST', headers: {"Content-Type": "text/plain"}, 
-            body: JSON.stringify({action: 'setPin', role: appState.actualRole, pin: pin, auth: masterPass}) 
-        });
+        const res = await fetch(GAS_URL, { method: 'POST', headers: {"Content-Type": "text/plain"}, body: JSON.stringify({action: 'setPin', role: appState.actualRole, pin: pin, auth: masterPass}) });
         const result = await res.json();
         hideLoader();
-        
-        if(result.success) {
-            localStorage.setItem("ei_usePin", "true");
-            alert("PIN saved successfully! You can use it on your next login.");
-        } else { alert(result.error); }
+        if(result.success) { localStorage.setItem("ei_usePin", "true"); alert("PIN saved successfully!"); } else { alert(result.error); }
     } catch(e) { hideLoader(); alert("Network error. Could not save PIN."); }
 }
 
@@ -471,9 +394,140 @@ function clearSavedLogin() {
     window.location.reload(); 
 }
 
+function openStudentDetailModal(studentId) {
+    if (appState.role === 'student') return; 
+    
+    const st = appData.students.find(s => s.id === studentId);
+    if (!st) return;
+
+    const actualPaid = getDynamicPaidFee(st);
+    const dues = st.totalFee - actualPaid;
+    
+    const avatarEl = document.getElementById('detail-avatar');
+    if (st.image) { avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`; avatarEl.style.padding = "0"; } 
+    else { avatarEl.innerHTML = st.name.charAt(0).toUpperCase(); avatarEl.style.padding = ""; }
+
+    document.getElementById('detail-name').innerText = st.name;
+    document.getElementById('detail-id').innerText = `ID: ${st.id}`;
+    document.getElementById('detail-phone').innerText = st.phone;
+    document.getElementById('detail-date').innerText = st.date;
+    document.getElementById('detail-course').innerText = st.course;
+    document.getElementById('detail-total').innerText = `₹${st.totalFee}`;
+    document.getElementById('detail-paid').innerText = `₹${actualPaid}`;
+    document.getElementById('detail-due').innerText = `₹${dues}`;
+
+    const historyContainer = document.getElementById('detail-history-list');
+    historyContainer.innerHTML = '';
+    
+    const stuTx = appData.transactions.filter(tx => tx.type === 'income' && !tx.title.includes('Job Desk:') && !tx.title.includes('Print Desk:') && (tx.title.includes(`[${st.id}]`) || tx.title.includes(st.name)));
+    
+    if (stuTx.length === 0) {
+        if (st.paidFee > 0) historyContainer.innerHTML = `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px;"><div class="list-info"><h4 style="font-size:0.8rem;">Initial Advance</h4><p style="font-size:0.65rem;">${st.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${st.paidFee}</h3></div></div>`;
+        else historyContainer.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 10px;">No payments recorded.</p>`;
+    } else {
+        stuTx.slice().reverse().forEach(tx => {
+            historyContainer.innerHTML += `<div class="list-item" style="padding: 10px 16px; margin-bottom: 6px;"><div class="list-info"><h4 style="font-size:0.8rem;">Fee Payment</h4><p style="font-size:0.65rem;">${tx.date}</p></div><div class="list-value"><h3 style="color: var(--success); font-size: 1rem;">+₹${tx.amount}</h3></div></div>`;
+        });
+    }
+
+    closeNotificationModal();
+    setTimeout(() => { document.getElementById('modal-student-detail').classList.add('active'); }, 100);
+}
+function closeStudentDetailModal() { document.getElementById('modal-student-detail').classList.remove('active'); }
+
 
 // ==========================================================================
-// 7. FORM SUBMISSIONS
+// 8. FILE UPLOADS & BROADCASTS
+// ==========================================================================
+
+// Upload Study Material
+document.getElementById('upload-material-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can upload materials.");
+    
+    const title = document.getElementById('mat-title').value;
+    const course = document.getElementById('mat-course').value;
+    const fileInput = document.getElementById('mat-file');
+    
+    if(!fileInput.files[0]) return alert("Please select a file to upload.");
+    
+    showLoader();
+    try {
+        const base64Data = await fileToBase64(fileInput.files[0]);
+        appData.materials.unshift({ 
+            id: 'MAT' + Date.now(), title: title, course: course, 
+            filename: fileInput.files[0].name, file: base64Data, date: new Date().toLocaleDateString('en-IN') 
+        });
+        
+        if(await syncDatabase("Upload Material")) {
+            alert("Study Material Published!");
+            this.reset(); document.getElementById('mat-file-name').innerText = "Choose File...";
+        }
+    } catch(err) { hideLoader(); alert("Error processing file. Try a smaller file."); }
+});
+
+// Upload Certificate
+document.getElementById('upload-cert-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can issue certificates.");
+    
+    const studentId = document.getElementById('cert-student').value;
+    const fileInput = document.getElementById('cert-file');
+    
+    if(!studentId || !fileInput.files[0]) return alert("Select student and file.");
+    
+    showLoader();
+    try {
+        const base64Data = await fileToBase64(fileInput.files[0]);
+        appData.certificates.unshift({ 
+            id: 'CRT' + Date.now(), studentId: studentId, 
+            filename: fileInput.files[0].name, file: base64Data, date: new Date().toLocaleDateString('en-IN') 
+        });
+        
+        if(await syncDatabase("Issue Certificate")) {
+            alert("Certificate Issued Successfully!");
+            this.reset(); document.getElementById('cert-file-name').innerText = "Choose File...";
+        }
+    } catch(err) { hideLoader(); alert("Error processing file. Try a smaller file."); }
+});
+
+// Broadcast with Media
+async function sendBroadcast() {
+    if(appState.actualRole !== 'admin' && appState.actualRole !== 'staff') return alert("Action Denied.");
+    
+    const title = document.getElementById('bc-title').value; 
+    const msg = document.getElementById('bc-msg').value;
+    const fileInput = document.getElementById('bc-media');
+    
+    if(!title || !msg) return alert("Please enter both a title and message.");
+    
+    showLoader();
+    try {
+        let mediaBase64 = null;
+        let mediaType = null;
+        
+        if (fileInput.files[0]) {
+            mediaBase64 = await fileToBase64(fileInput.files[0]);
+            mediaType = fileInput.files[0].type;
+        }
+
+        appData.notices.unshift({ 
+            title: title, message: msg, date: new Date().toLocaleDateString('en-IN'), 
+            media: mediaBase64, mediaType: mediaType 
+        });
+        
+        if(await syncDatabase("Broadcast Notice")) {
+            alert("Notice broadcasted to all students!"); 
+            document.getElementById('bc-title').value = ''; 
+            document.getElementById('bc-msg').value = '';
+            fileInput.value = '';
+            document.getElementById('bc-media-name').innerText = 'Attach Photo/Video (Optional)';
+        }
+    } catch (error) { hideLoader(); alert("Failed to attach media. File might be too large."); }
+}
+
+// ==========================================================================
+// 9. STANDARD FORM SUBMISSIONS
 // ==========================================================================
 function recalcStats() {
     appData.stats.income = 0; appData.stats.expense = 0;
@@ -487,7 +541,7 @@ function recalcStats() {
 
 document.getElementById('admission-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can register students.");
+    if(appState.actualRole !== 'admin') return alert("Action Denied.");
     
     const name = document.getElementById('reg-name').value;
     const phone = document.getElementById('reg-phone').value;
@@ -504,13 +558,13 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     }
     
     recalcStats();
+    populatePreviewLists(); // Update dropdowns
+    
     if(await syncDatabase("Register Student")) {
         const year = dateStr.substring(0,4);
         const firstName = name.split(' ')[0];
         alert(`Success!\nStudent Password Auto-Generated: EI${firstName}${year}`);
-        
-        this.reset(); 
-        document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
+        this.reset(); document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
         switchTab('students');
     }
 });
@@ -520,7 +574,7 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     if(form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can record finances.");
+            if(appState.actualRole !== 'admin') return alert("Action Denied.");
             
             let title = "", desc = "", amount = 0, txType = "income";
             if (type === 'job') { title = `Job Desk: ${document.getElementById('job-name').value}`; desc = document.getElementById('job-post').value; amount = parseFloat(document.getElementById('job-amount').value); }
@@ -529,35 +583,14 @@ document.getElementById('admission-form').addEventListener('submit', async funct
 
             appData.transactions.push({ id: 'TXN'+Date.now(), type: txType, title: title, description: desc, amount: amount, date: new Date().toISOString().split('T')[0] });
             recalcStats();
-            
-            if(await syncDatabase(`Save ${type} Entry`)) { 
-                this.reset(); 
-                renderList(type); 
-            }
+            if(await syncDatabase(`Save ${type} Entry`)) { this.reset(); renderList(type); }
         });
     }
 });
 
-async function sendBroadcast() {
-    if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can send notices.");
-    
-    const title = document.getElementById('bc-title').value; 
-    const msg = document.getElementById('bc-msg').value;
-    if(!title || !msg) return alert("Please enter both a title and message.");
-    
-    if(!appData.notices) appData.notices = [];
-    appData.notices.unshift({ title: title, message: msg, date: new Date().toLocaleDateString('en-IN') });
-    
-    if(await syncDatabase("Broadcast Notice")) {
-        alert("Notice successfully broadcasted to all students!"); 
-        document.getElementById('bc-title').value = ''; 
-        document.getElementById('bc-msg').value = '';
-    }
-}
-
 
 // ==========================================================================
-// 8. RENDERERS
+// 10. RENDERERS (Updated with Materials, Certs, and Media)
 // ==========================================================================
 function updateDashboardFinancials() {
     document.getElementById('dash-balance').innerText = `₹${appData.stats.balance.toLocaleString('en-IN')}`;
@@ -571,63 +604,40 @@ function renderStudents() {
     listEl.innerHTML = '';
     
     const filtered = appData.students.filter(s => s.name.toLowerCase().includes(query) || s.phone.includes(query));
-    
-    if (filtered.length === 0) {
-        listEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No students found.</p>';
-        return;
-    }
+    if (filtered.length === 0) return listEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No students found.</p>';
     
     filtered.forEach(st => {
         const actualPaid = getDynamicPaidFee(st);
         const dues = st.totalFee - actualPaid;
         const dueColor = dues > 0 ? 'var(--danger)' : 'var(--success)';
-        
-        const avatarContent = st.image 
-            ? `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 14px;">` 
-            : st.name.charAt(0).toUpperCase();
+        const avatarContent = st.image ? `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 14px;">` : st.name.charAt(0).toUpperCase();
 
         listEl.innerHTML += `
             <div class="list-item" onclick="openStudentDetailModal('${st.id}')">
                 <div style="display: flex; align-items: center;">
                     <div class="list-avatar" style="${st.image ? 'padding: 0; overflow: hidden;' : ''}">${avatarContent}</div>
-                    <div class="list-info">
-                        <h4>${st.name}</h4>
-                        <p>${st.phone} • ${st.course}</p>
-                    </div>
+                    <div class="list-info"><h4>${st.name}</h4><p>${st.phone} • ${st.course}</p></div>
                 </div>
-                <div class="list-value">
-                    <span>Due</span>
-                    <h3 style="color: ${dueColor}">₹${dues}</h3>
-                </div>
+                <div class="list-value"><span>Due</span><h3 style="color: ${dueColor}">₹${dues}</h3></div>
             </div>`;
     });
 }
 
 function renderList(type) {
-    const listEl = document.getElementById(`${type}-list`); 
-    listEl.innerHTML = '';
-    
+    const listEl = document.getElementById(`${type}-list`); listEl.innerHTML = '';
     let f = []; 
     if(type==='job') f=appData.transactions.filter(t=>t.title.includes('Job Desk')); 
     if(type==='print') f=appData.transactions.filter(t=>t.title.includes('Print Desk')); 
     if(type==='expense') f=appData.transactions.filter(t=>t.type==='expense');
     
-    if(f.length===0) {
-        listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No recent records.</p>`;
-        return;
-    }
+    if(f.length===0) return listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No recent records.</p>`;
     
     f.slice().reverse().slice(0, 15).forEach(tx => {
         const isInc = tx.type === 'income';
         listEl.innerHTML += `
             <div class="list-item" style="cursor: default; pointer-events: none;">
-                <div class="list-info">
-                    <h4>${tx.title.replace('Job Desk: ','').replace('Print Desk: ','')}</h4>
-                    <p>${tx.date}</p>
-                </div>
-                <div class="list-value">
-                    <h3 style="color: ${isInc ? 'var(--success)' : 'var(--danger)'}">${isInc ? '+' : '-'}₹${tx.amount}</h3>
-                </div>
+                <div class="list-info"><h4>${tx.title.replace('Job Desk: ','').replace('Print Desk: ','')}</h4><p>${tx.date}</p></div>
+                <div class="list-value"><h3 style="color: ${isInc ? 'var(--success)' : 'var(--danger)'}">${isInc ? '+' : '-'}₹${tx.amount}</h3></div>
             </div>`;
     });
 }
@@ -636,53 +646,74 @@ function renderStudentDashboard() {
     const st = appState.currentUser;
     if(!st) return;
 
+    // Profile Details
     document.getElementById('stu-name').innerText = st.name; 
     document.getElementById('stu-course').innerText = st.course;
     document.getElementById('stu-date').innerText = st.date;
-    
     const avatarEl = document.getElementById('stu-avatar');
-    if (st.image) {
-        avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
-        avatarEl.style.padding = "0";
-    } else {
-        avatarEl.innerHTML = st.name.charAt(0).toUpperCase();
-        avatarEl.style.padding = "";
-    }
+    if (st.image) { avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`; avatarEl.style.padding = "0"; } 
+    else { avatarEl.innerHTML = st.name.charAt(0).toUpperCase(); avatarEl.style.padding = ""; }
     
+    // Dues
     const actualPaid = getDynamicPaidFee(st);
     const dues = st.totalFee - actualPaid; 
-    
     document.getElementById('stu-due-amount').innerText = `₹${dues}`; 
     document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
-    const noticesEl = document.getElementById('stu-notices'); 
-    noticesEl.innerHTML = '';
-    
+    // My Certificates
+    const certCtn = document.getElementById('stu-certificates');
+    const myCerts = (appData.certificates || []).filter(c => c.studentId === st.id);
+    if(myCerts.length > 0) {
+        certCtn.innerHTML = myCerts.map(c => `
+            <div class="list-item" style="padding: 16px;">
+                <div class="flex items-center"><i class="fa-solid fa-award text-2xl text-emerald-500 mr-4"></i><div><h4 style="font-weight: 800; font-size: 0.9rem;">Course Certificate</h4><p style="font-size: 0.7rem; color: var(--text-muted);">${c.date}</p></div></div>
+                <a href="${c.file}" download="${c.filename}" class="btn-primary" style="width: auto; padding: 10px 16px; font-size: 0.8rem; background: var(--success);"><i class="fa-solid fa-download"></i></a>
+            </div>`).join('');
+    } else { certCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700;">No certificates issued yet.</p>'; }
+
+    // Study Materials
+    const matCtn = document.getElementById('stu-materials');
+    const myMats = (appData.materials || []).filter(m => m.course.toLowerCase() === 'all' || m.course.toLowerCase() === st.course.toLowerCase());
+    if(myMats.length > 0) {
+        matCtn.innerHTML = myMats.map(m => `
+            <div class="list-item" style="padding: 16px;">
+                <div class="flex items-center"><i class="fa-solid fa-file-pdf text-2xl text-indigo-500 mr-4"></i><div style="max-width: 180px;"><h4 style="font-weight: 800; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.title}</h4><p style="font-size: 0.7rem; color: var(--text-muted);">${m.date}</p></div></div>
+                <a href="${m.file}" download="${m.filename}" class="btn-primary" style="width: auto; padding: 10px 16px; font-size: 0.8rem;"><i class="fa-solid fa-download"></i></a>
+            </div>`).join('');
+    } else { matCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700;">No materials available.</p>'; }
+
+    // Notices (With Media Support)
+    const noticesEl = document.getElementById('stu-notices'); noticesEl.innerHTML = '';
     if(appData.notices && appData.notices.length > 0) {
         appData.notices.forEach(n => {
+            let mediaHtml = '';
+            if (n.media) {
+                if (n.mediaType && n.mediaType.startsWith('video/')) {
+                    mediaHtml = `<video src="${n.media}" controls style="width: 100%; border-radius: 12px; margin-top: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"></video>`;
+                } else {
+                    mediaHtml = `<img src="${n.media}" style="width: 100%; border-radius: 12px; margin-top: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">`;
+                }
+            }
             noticesEl.innerHTML += `
-                <div style="border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 12px;">
-                    <h4 style="font-size: 0.85rem; font-weight: 800; color: var(--primary);">${n.title}</h4>
-                    <p style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-top: 4px;">${n.message}</p>
-                    <p style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); margin-top: 6px; text-transform: uppercase;">${n.date}</p>
+                <div style="border-bottom: 1px solid var(--border-light); padding-bottom: 16px; margin-bottom: 16px;">
+                    <h4 style="font-size: 0.95rem; font-weight: 900; color: var(--primary);">${n.title}</h4>
+                    <p style="font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-top: 4px;">${n.message}</p>
+                    ${mediaHtml}
+                    <p style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); margin-top: 8px; text-transform: uppercase;">${n.date}</p>
                 </div>`;
         });
-    } else { 
-        noticesEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; font-weight: 700;">No notices from the Institute.</p>'; 
-    }
+    } else { noticesEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; font-weight: 700;">No notices from the Institute.</p>'; }
 }
 
 function renderChart() {
     if(analyticsChartInstance) analyticsChartInstance.destroy();
     let incMap = {}, expMap = {};
-    
     appData.transactions.forEach(tx => {
         let m = tx.date.substring(0,7);
         if(tx.type==='income') incMap[m] = (incMap[m]||0) + parseFloat(tx.amount);
         if(tx.type==='expense') expMap[m] = (expMap[m]||0) + parseFloat(tx.amount);
     });
-    
     let labels = Object.keys(incMap).concat(Object.keys(expMap)).filter((v,i,a)=>a.indexOf(v)===i).sort().slice(-6);
     
     analyticsChartInstance = new Chart(document.getElementById('analyticsChart').getContext('2d'), { 
@@ -694,10 +725,6 @@ function renderChart() {
                 { label: 'Expense', data: labels.map(l=>expMap[l]||0), backgroundColor: '#f43f5e', borderRadius: 6 }
             ] 
         }, 
-        options: { 
-            responsive: true, maintainAspectRatio: false, 
-            scales: { x: { grid: { display: false } }, y: { beginAtZero: true, border: {dash: [4, 4]} } },
-            plugins: { legend: { labels: { font: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold' } } } }
-        } 
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, border: {dash: [4, 4]} } }, plugins: { legend: { labels: { font: { family: "'Plus Jakarta Sans', sans-serif", weight: 'bold' } } } } } 
     });
 }
