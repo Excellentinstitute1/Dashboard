@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Excellent Institute ERP</title>
+    <!-- We will put our CSS here -->
+</head>
+<body>
+
+    <!-- App Container -->
+    <div id="app-container">
+        
+        <!-- Screen 1: Login -->
+        <div id="screen-login" class="screen active">
+            <div class="login-header">
+                <h2>Excellent Institute</h2>
+                <p>ERP System</p>
+            </div>
+            
+            <div class="card">
+                <form id="login-form">
+                    <div class="input-group">
+                        <label for="username">Username / User ID</label>
+                        <input type="text" id="username" required autocomplete="off">
+                    </div>
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" required>
+                    </div>
+                    <button type="submit" class="btn-primary" id="login-btn">Log In</button>
+                    <p id="login-message" class="message"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Screen 2: Main Dashboard (Hidden initially) -->
+        <div id="screen-main" class="screen">
+            <div class="top-app-bar">
+                <h3>Dashboard</h3>
+            </div>
+            
+            <div class="content-area">
+                <div class="card">
+                    <h4>Welcome Back</h4>
+                    <p>Select an option from the menu below.</p>
+                </div>
+                <!-- Future stacked data cards go here -->
+            </div>
+
+            <!-- Bottom Navigation Bar -->
+            <div class="bottom-nav">
+                <button class="nav-item active" onclick="switchTab('home')">Home</button>
+                <button class="nav-item" onclick="switchTab('students')">Students</button>
+                <button class="nav-item" onclick="switchTab('fees')">Fees</button>
+                <button class="nav-item" onclick="switchTab('profile')">Profile</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- We will put our JS here -->
+</body>
+</html>
