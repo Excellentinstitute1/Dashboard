@@ -3,136 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Excellent Institute</title>
+    <title>Excellent Institute ERP</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div id="app-container">
-        <!-- Loader -->
-        <div id="loader">
-            <i class="fa-solid fa-spinner fa-spin fa-3x" style="margin-bottom: 12px;"></i>
-            <p id="loader-text">Loading...</p>
+<body class="bg-slate-50 text-slate-800 antialiased h-screen overflow-hidden">
+
+    <div id="app-container" class="relative h-full w-full max-w-md mx-auto bg-slate-100 shadow-2xl overflow-hidden flex flex-col">
+        
+        <!-- Loading Overlay -->
+        <div id="loader" class="absolute inset-0 z-50 bg-white/80 backdrop-blur-md hidden flex-col items-center justify-center">
+            <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+            <p id="loader-text" class="mt-4 font-bold text-indigo-600 tracking-wide">Loading...</p>
         </div>
 
-        <!-- 3-Way Login Screen -->
-        <div id="screen-login" class="screen active">
-            <div class="card text-center" style="max-width: 400px; margin: auto; width: 100%;">
-                <div class="logo-container">
-                    <img src="logo.jpeg" alt="Logo" class="circular-logo" onerror="this.src='https://ui-avatars.com/api/?name=Excellent+Institute&background=4f46e5&color=fff&size=100'">
+        <!-- Floating Admin "View As" Banner (Shows when Admin is previewing as someone else) -->
+        <div id="admin-view-banner" class="hidden absolute top-0 left-0 w-full bg-rose-500 text-white text-[10px] font-bold text-center py-1 z-50 shadow-md">
+            <span>Admin Preview Mode Active</span>
+            <button onclick="exitAdminPreview()" class="ml-2 bg-white text-rose-500 px-2 py-0.5 rounded-full">Exit to Admin</button>
+        </div>
+
+        <!-- SCREEN: Login -->
+        <div id="screen-login" class="screen active h-full flex flex-col items-center justify-center p-6 bg-animated">
+            <div class="glass-panel w-full p-8 rounded-3xl shadow-xl border border-white/50 text-center relative z-10">
+                <div class="w-24 h-24 mx-auto mb-4 p-1 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full shadow-lg">
+                    <img src="logo.jpeg" class="w-full h-full object-cover rounded-full border-2 border-white bg-white" onerror="this.src='https://ui-avatars.com/api/?name=E+I&background=fff&color=4f46e5'">
                 </div>
-                <h2>Excellent Institute</h2>
-                <p class="subtitle">Secure Unified Portal</p>
+                <h1 class="text-2xl font-extrabold text-slate-800 mb-1">Excellent Institute</h1>
+                <p class="text-xs font-bold text-indigo-600 tracking-widest uppercase mb-8">Secure ERP Portal</p>
                 
-                <form id="login-form">
-                    <div class="input-group text-left">
-                        <label>User ID</label>
-                        <input type="text" id="userid" required placeholder="Phone Number or 'excellent'">
+                <form id="login-form" class="space-y-4">
+                    <div class="relative text-left">
+                        <i class="fa-solid fa-user absolute left-4 top-4 text-slate-400"></i>
+                        <input type="text" id="userid" class="w-full bg-white/70 border border-white rounded-xl pl-12 pr-4 py-3 font-semibold focus:ring-2 focus:ring-indigo-400 outline-none transition-all" placeholder="Phone No. or 'excellent'" required>
                     </div>
-                    <div class="input-group text-left">
-                        <label>Password</label>
-                        <input type="password" id="password" required placeholder="Enter password...">
+                    <div class="relative text-left">
+                        <i class="fa-solid fa-lock absolute left-4 top-4 text-slate-400"></i>
+                        <input type="password" id="password" class="w-full bg-white/70 border border-white rounded-xl pl-12 pr-4 py-3 font-semibold focus:ring-2 focus:ring-indigo-400 outline-none transition-all" placeholder="Password" required>
                     </div>
-                    <p id="login-error">Incorrect credentials.</p>
-                    <button type="submit" class="btn-primary" id="login-btn">Secure Login</button>
+                    <p id="login-error" class="hidden text-rose-600 text-xs font-bold bg-rose-100 py-2 rounded-lg">Incorrect credentials.</p>
+                    <button type="submit" class="w-full py-4 mt-2 bg-slate-900 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95">Secure Access <i class="fa-solid fa-arrow-right ml-2"></i></button>
                 </form>
             </div>
         </div>
 
-        <!-- Admin / Staff Dashboard -->
-        <div id="screen-dashboard" class="screen">
-            <div class="top-app-bar">
-                <span id="welcome-text">Dashboard</span>
-                <i class="fa-solid fa-bell notification-icon" onclick="checkDues()"></i>
-            </div>
-            <div class="content-area">
-                
-                <div class="card" id="admin-broadcast-panel" style="display:none;">
-                    <h3 style="margin-bottom:10px; font-size:14px;"><i class="fa-solid fa-bullhorn text-primary"></i> Broadcast Notice</h3>
-                    <input type="text" id="bc-title" placeholder="Notice Title" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border);">
-                    <textarea id="bc-msg" placeholder="Message for all students..." rows="2" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border);"></textarea>
-                    <button class="btn-primary" style="padding:10px; margin-top:10px;" onclick="sendBroadcast()">Send Notice</button>
+        <!-- App Bar (Shared across inner screens) -->
+        <header id="main-header" class="hidden bg-slate-900 text-white pt-8 pb-4 px-5 rounded-b-3xl shadow-lg flex-shrink-0 z-20">
+            <div class="flex justify-between items-center mt-2">
+                <div>
+                    <h2 id="page-title" class="text-xl font-extrabold tracking-tight">Dashboard</h2>
+                    <p id="page-subtitle" class="text-[10px] font-semibold text-indigo-300 uppercase tracking-widest">Financial Overview</p>
                 </div>
+                <div class="flex gap-3">
+                    <button id="btn-admin-view" onclick="openViewSwitcher()" class="hidden w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-indigo-300 hover:text-white"><i class="fa-solid fa-eye"></i></button>
+                    <button onclick="checkDues()" class="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-indigo-300 hover:text-white">
+                        <i class="fa-solid fa-bell"></i>
+                        <span id="notif-dot" class="hidden absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full border border-slate-900"></span>
+                    </button>
+                </div>
+            </div>
+        </header>
 
-                <div class="stat-grid" id="financial-stats">
-                    <div class="stat-box balance">
-                        <p>Available Balance</p>
-                        <h2 id="dash-balance">₹0</h2>
-                    </div>
-                </div>
-                
-                <div id="admin-controls">
-                    <p class="section-heading">Quick Actions</p>
-                    <div class="quick-actions">
-                        <button class="action-btn" onclick="switchTab('admission')">
-                            <i class="fa-solid fa-user-plus"></i> New Admission
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <!-- Main Content Scroll Area -->
+        <main id="main-content" class="hidden flex-1 overflow-y-auto custom-scrollbar p-4 pb-24 z-10 relative">
             
-            <div class="bottom-nav">
-                <button class="nav-item active" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button>
-                <button class="nav-item" onclick="switchTab('students')"><i class="fa-solid fa-users"></i>Students</button>
-                <button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button>
-            </div>
-        </div>
-
-        <!-- Student Personal Dashboard -->
-        <div id="screen-student-dash" class="screen">
-            <div class="top-app-bar">
-                <span>My Profile</span>
-            </div>
-            <div class="content-area">
-                <div class="profile-header card">
-                    <div class="avatar-large" id="stu-avatar">S</div>
-                    <h2 id="stu-name">Name</h2>
-                    <p id="stu-course" style="color: var(--text-muted); font-weight: bold; font-size: 13px;">Course</p>
-                    <p style="font-size: 11px; margin-top:5px; color: var(--primary);">Reg Date: <span id="stu-date"></span></p>
-                </div>
-
-                <div class="stat-grid" style="margin-top: 15px;">
-                    <div class="stat-box" id="stu-due-card">
-                        <p>Pending Dues</p>
-                        <h2 id="stu-due-amount">₹0</h2>
-                        <p style="font-size: 10px; color: var(--text-muted); margin-top: 5px;">Contact Admin to clear dues.</p>
+            <!-- SCREEN: Dashboard (Admin/Staff) -->
+            <div id="view-dashboard" class="view-section active space-y-4">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="premium-card p-4 border-t-4 border-t-emerald-500">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Total In</p>
+                        <h3 id="dash-income" class="text-lg font-black text-slate-800">₹0</h3>
+                    </div>
+                    <div class="premium-card p-4 border-t-4 border-t-rose-500">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Total Out</p>
+                        <h3 id="dash-expense" class="text-lg font-black text-slate-800">₹0</h3>
+                    </div>
+                    <div class="col-span-2 premium-card p-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-[10px] font-bold text-indigo-300 uppercase">Net Balance</p>
+                                <h2 id="dash-balance" class="text-3xl font-black">₹0</h2>
+                            </div>
+                            <i class="fa-solid fa-vault text-4xl text-white/20"></i>
+                        </div>
                     </div>
                 </div>
-                
-                <p class="section-heading" style="margin-top: 20px;">Institute Notices</p>
-                <div class="card" id="stu-notices"></div>
-            </div>
-            <div class="bottom-nav">
-                <button class="nav-item active"><i class="fa-solid fa-user"></i>Profile</button>
-                <button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button>
-            </div>
-        </div>
-        
-        <!-- Other Screens (Admission, Student List) remain structural -->
-        <div id="screen-admission" class="screen">
-            <div class="top-app-bar"><i class="fa-solid fa-arrow-left" onclick="switchTab('dashboard')" style="cursor: pointer;"></i><span>New Admission</span><i class="fa-solid fa-ellipsis-vertical" style="opacity:0;"></i></div>
-            <div class="content-area">
-                <div class="card">
-                    <form id="admission-form">
-                        <div class="input-group"><label>Date</label><input type="date" id="reg-date" required></div>
-                        <div class="input-group"><label>Full Name</label><input type="text" id="reg-name" required></div>
-                        <div class="input-group"><label>10-Digit Phone (Student ID)</label><input type="tel" id="reg-phone" pattern="[0-9]{10}" required></div>
-                        <div class="input-group"><label>Course</label><input type="text" id="reg-course" required></div>
-                        <div class="input-group"><label>Total Fee (₹)</label><input type="number" id="reg-fee" required></div>
-                        <div class="input-group"><label>Advance (₹)</label><input type="number" id="reg-paid" required></div>
-                        <button type="submit" class="btn-primary">Save Admission</button>
-                    </form>
+
+                <p class="text-xs font-bold text-slate-500 uppercase mt-4 mb-2 px-1">Modules</p>
+                <div class="grid grid-cols-4 gap-3 text-center">
+                    <button onclick="switchTab('admission')" class="action-btn"><div class="icon-circle bg-indigo-50 text-indigo-600"><i class="fa-solid fa-user-plus"></i></div><span class="text-[10px] font-bold mt-1">Admit</span></button>
+                    <button onclick="switchTab('job')" class="action-btn"><div class="icon-circle bg-blue-50 text-blue-600"><i class="fa-solid fa-briefcase"></i></div><span class="text-[10px] font-bold mt-1">Jobs</span></button>
+                    <button onclick="switchTab('print')" class="action-btn"><div class="icon-circle bg-purple-50 text-purple-600"><i class="fa-solid fa-print"></i></div><span class="text-[10px] font-bold mt-1">Print</span></button>
+                    <button onclick="switchTab('expense')" class="action-btn"><div class="icon-circle bg-rose-50 text-rose-600"><i class="fa-solid fa-minus"></i></div><span class="text-[10px] font-bold mt-1">Expense</span></button>
+                </div>
+
+                <!-- Admin Broadcast Panel -->
+                <div id="admin-broadcast-panel" class="hidden premium-card p-4 mt-4 border border-indigo-100 bg-indigo-50/50">
+                    <h4 class="text-sm font-bold text-indigo-900 mb-3"><i class="fa-solid fa-bullhorn mr-1"></i> Send Notice</h4>
+                    <input type="text" id="bc-title" class="form-input mb-2 text-sm py-2" placeholder="Title">
+                    <textarea id="bc-msg" class="form-input mb-2 text-sm py-2" placeholder="Message..." rows="2"></textarea>
+                    <button onclick="sendBroadcast()" class="w-full bg-indigo-600 text-white text-sm font-bold py-2 rounded-lg active:scale-95 transition-transform">Broadcast to Students</button>
                 </div>
             </div>
-            <div class="bottom-nav"><button class="nav-item" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button><button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button></div>
+
+            <!-- SCREEN: Student Dashboard -->
+            <div id="view-student-dash" class="view-section space-y-4">
+                <div class="premium-card p-6 text-center bg-white relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-16 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                    <div id="stu-avatar" class="relative z-10 w-20 h-20 mx-auto bg-white border-4 border-white rounded-full shadow-md flex items-center justify-center text-3xl font-black text-indigo-600 mt-4 mb-3">S</div>
+                    <h2 id="stu-name" class="text-xl font-extrabold text-slate-800">Student Name</h2>
+                    <p id="stu-course" class="text-sm font-bold text-slate-500 mb-1">Course</p>
+                    <p class="text-[10px] font-bold text-indigo-400 bg-indigo-50 inline-block px-2 py-1 rounded-md">Reg: <span id="stu-date"></span></p>
+                </div>
+
+                <div id="stu-due-card" class="premium-card p-5 border-l-4 text-center">
+                    <p class="text-xs font-bold text-slate-500 uppercase">Pending Dues</p>
+                    <h2 id="stu-due-amount" class="text-3xl font-black mt-1">₹0</h2>
+                    <p class="text-[10px] text-slate-400 mt-2">Please contact the admin desk to clear dues.</p>
+                </div>
+
+                <div class="premium-card p-4">
+                    <h3 class="text-sm font-bold text-slate-800 mb-3 border-b pb-2"><i class="fa-solid fa-clipboard-list text-indigo-500 mr-2"></i> Institute Notices</h3>
+                    <div id="stu-notices" class="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                        <!-- Notices populate here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Restored Modules: Registration, Students, Job, Print, Expense, Analytics -->
+            <!-- Registration -->
+            <div id="view-admission" class="view-section">
+                <form id="admission-form" class="premium-card p-5 space-y-4">
+                    <div class="input-group"><label>Date</label><input type="date" id="reg-date" class="form-input" required></div>
+                    <div class="input-group"><label>Full Name</label><input type="text" id="reg-name" class="form-input" required></div>
+                    <div class="input-group"><label>10-Digit Phone (User ID)</label><input type="tel" id="reg-phone" class="form-input" pattern="[0-9]{10}" placeholder="e.g. 9876543210" required></div>
+                    <div class="input-group"><label>Course</label><input type="text" id="reg-course" class="form-input" required></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="input-group"><label>Total Fee (₹)</label><input type="number" id="reg-fee" class="form-input text-indigo-600 font-bold" required></div>
+                        <div class="input-group"><label>Advance (₹)</label><input type="number" id="reg-paid" class="form-input text-emerald-600 font-bold" required></div>
+                    </div>
+                    <button type="submit" class="btn-primary w-full shadow-indigo-500/30 shadow-lg mt-4">Save & Auto-Generate Password</button>
+                </form>
+            </div>
+
+            <!-- Student List -->
+            <div id="view-students" class="view-section space-y-3">
+                <input type="text" id="student-search" placeholder="Search students..." class="form-input w-full sticky top-0 z-10 shadow-sm" onkeyup="renderStudents()">
+                <div id="student-list" class="space-y-3"></div>
+            </div>
+
+            <!-- Job Desk -->
+            <div id="view-job" class="view-section">
+                <form id="job-form" class="premium-card p-5 space-y-4 mb-4 bg-blue-50/30 border-blue-100">
+                    <h3 class="font-bold text-blue-800 border-b border-blue-100 pb-2"><i class="fa-solid fa-briefcase mr-2"></i>New Job App</h3>
+                    <div class="input-group"><label>Applicant Name</label><input type="text" id="job-name" class="form-input" required></div>
+                    <div class="input-group"><label>Applied Post</label><input type="text" id="job-post" class="form-input" required></div>
+                    <div class="input-group"><label>Amount (₹)</label><input type="number" id="job-amount" class="form-input font-bold text-blue-600" required></div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">Save Job Income</button>
+                </form>
+                <div id="job-list" class="space-y-2"></div>
+            </div>
+
+            <!-- Print Desk -->
+            <div id="view-print" class="view-section">
+                <form id="print-form" class="premium-card p-5 space-y-4 mb-4 bg-purple-50/30 border-purple-100">
+                    <h3 class="font-bold text-purple-800 border-b border-purple-100 pb-2"><i class="fa-solid fa-print mr-2"></i>Print/Xerox Entry</h3>
+                    <div class="input-group">
+                        <label>Service Type</label>
+                        <select id="print-service" class="form-input font-bold text-slate-700">
+                            <option value="Photocopy">Photocopy (Xerox)</option>
+                            <option value="Color Print">Color Printout</option>
+                            <option value="Lamination">Lamination / Binding</option>
+                        </select>
+                    </div>
+                    <div class="input-group"><label>Amount (₹)</label><input type="number" id="print-amount" class="form-input font-bold text-purple-600" required></div>
+                    <button type="submit" class="w-full bg-purple-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">Save Print Income</button>
+                </form>
+                <div id="print-list" class="space-y-2"></div>
+            </div>
+
+            <!-- Expenditure -->
+            <div id="view-expense" class="view-section">
+                <form id="expense-form" class="premium-card p-5 space-y-4 mb-4 bg-rose-50/30 border-rose-100">
+                    <h3 class="font-bold text-rose-800 border-b border-rose-100 pb-2"><i class="fa-solid fa-minus-circle mr-2"></i>Record Expense</h3>
+                    <div class="input-group">
+                        <label>Category</label>
+                        <select id="exp-category" class="form-input font-bold text-slate-700">
+                            <option value="Electricity">Electricity Bill</option>
+                            <option value="Rent">Office Rent</option>
+                            <option value="Salary">Staff Salary</option>
+                            <option value="Supplies">Supplies / Misc</option>
+                        </select>
+                    </div>
+                    <div class="input-group"><label>Amount (₹)</label><input type="number" id="exp-amount" class="form-input font-bold text-rose-600" required></div>
+                    <button type="submit" class="w-full bg-rose-600 text-white font-bold py-3 rounded-xl active:scale-95 transition-transform">Deduct Expense</button>
+                </form>
+                <div id="expense-list" class="space-y-2"></div>
+            </div>
+
+            <!-- Analytics Chart -->
+            <div id="view-analytics" class="view-section space-y-4">
+                <div class="premium-card p-4">
+                    <h3 class="text-sm font-bold text-slate-800 mb-4">Profit & Loss Trend</h3>
+                    <div class="relative h-64 w-full">
+                        <canvas id="analyticsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Bottom Navigation Menu -->
+        <nav id="bottom-nav" class="hidden bg-white border-t border-slate-200 flex justify-around pb-[env(safe-area-inset-bottom,10px)] pt-2 px-2 z-20 flex-shrink-0">
+            <button onclick="switchTab('dashboard')" class="nav-btn active group"><div class="nav-icon"><i class="fa-solid fa-chart-pie"></i></div><span class="nav-text">Home</span></button>
+            <button onclick="switchTab('students')" class="nav-btn group" id="nav-students-btn"><div class="nav-icon"><i class="fa-solid fa-users"></i></div><span class="nav-text">Students</span></button>
+            <button onclick="switchTab('analytics')" class="nav-btn group" id="nav-analytics-btn"><div class="nav-icon"><i class="fa-solid fa-chart-line"></i></div><span class="nav-text">Analytics</span></button>
+            <button onclick="logout()" class="nav-btn group"><div class="nav-icon text-rose-400 group-hover:text-rose-600"><i class="fa-solid fa-power-off"></i></div><span class="nav-text text-rose-400 group-hover:text-rose-600">Logout</span></button>
+        </nav>
+
+        <!-- View Switcher Modal (For Admins) -->
+        <div id="view-switcher-modal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+                <h3 class="font-bold text-slate-800 mb-4 border-b pb-2">Admin: Switch Perspective</h3>
+                <div class="space-y-3">
+                    <button onclick="changeAdminView('admin')" class="w-full text-left p-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-sm"><i class="fa-solid fa-user-shield w-6 text-indigo-600"></i> Admin (Full Access)</button>
+                    <button onclick="changeAdminView('staff')" class="w-full text-left p-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-sm"><i class="fa-solid fa-user-tie w-6 text-emerald-600"></i> Staff (Read Only)</button>
+                    <div class="mt-4 pt-4 border-t">
+                        <p class="text-xs font-bold text-slate-400 mb-2">View as Student:</p>
+                        <select id="preview-student-select" class="form-input text-sm w-full mb-2">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <button onclick="changeAdminView('student')" class="w-full bg-indigo-600 text-white font-bold py-2 rounded-xl text-sm">Preview Student Dashboard</button>
+                    </div>
+                    <button onclick="closeViewSwitcher()" class="w-full mt-2 text-slate-400 font-bold text-sm py-2">Cancel</button>
+                </div>
+            </div>
         </div>
 
-        <div id="screen-students" class="screen">
-            <div class="top-app-bar"><span>Student Database</span></div>
-            <div class="content-area" style="padding: 0;"><div class="card" style="margin: 16px; padding: 0;" id="student-list"></div></div>
-            <div class="bottom-nav"><button class="nav-item" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i>Home</button><button class="nav-item active" onclick="switchTab('students')"><i class="fa-solid fa-users"></i>Students</button><button class="nav-item" onclick="logout()"><i class="fa-solid fa-power-off"></i>Logout</button></div>
-        </div>
     </div>
+
     <script src="app.js"></script>
 </body>
 </html>
