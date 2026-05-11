@@ -131,7 +131,7 @@ html, body {
 .top-app-bar h2 { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.02em; color: var(--primary-dark); }
 .top-app-bar p { font-size: 0.65rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.15em; }
 
-/* --- 8. DASHBOARD LIVE STAT BOXES --- */
+/* --- 8. DASHBOARD LIVE STAT BOXES (With Fintech Badges) --- */
 .stat-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px; }
 .stat-grid.two-col { grid-template-columns: 1fr 1fr; }
 
@@ -146,6 +146,22 @@ html, body {
 .stat-box.income::before { background: var(--success); }
 .stat-box.expense::before { background: var(--danger); }
 
+/* Premium Fintech Badges for Stat Labels */
+.stat-box > p:first-of-type { 
+    font-size: 0.65rem; text-transform: uppercase; font-weight: 900; 
+    margin-bottom: 12px; letter-spacing: 0.05em; 
+    display: inline-flex; align-items: center;
+    padding: 6px 12px; border-radius: 12px;
+}
+.stat-box.income > p:first-of-type { color: var(--success); background: var(--success-bg); border: 1px solid rgba(16, 185, 129, 0.2); }
+.stat-box.income > p:first-of-type::before { content: '\f062'; font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 6px; font-size: 0.8rem; }
+
+.stat-box.expense > p:first-of-type { color: var(--danger); background: var(--danger-bg); border: 1px solid rgba(244, 63, 94, 0.2); }
+.stat-box.expense > p:first-of-type::before { content: '\f063'; font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 6px; font-size: 0.8rem; }
+
+.stat-box.balance > p:first-of-type { color: white !important; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(4px); }
+.stat-box.balance > p:first-of-type::before { content: '\f51e'; font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 6px; font-size: 0.8rem; }
+
 /* Floating Pulse for basic stats */
 .stat-box.income { animation: floatBox 6s ease-in-out infinite; }
 .stat-box.expense { animation: floatBox 6s ease-in-out infinite reverse; }
@@ -159,12 +175,19 @@ html, body {
 .stat-box.income h2 { color: var(--success); }
 .stat-box.expense h2 { color: var(--danger); }
 
+/* NET BALANCE: Force contrast to prevent invisible text */
+.stat-box.balance { 
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary)) !important; 
+    border: none; overflow: hidden; position: relative; z-index: 1;
+    box-shadow: 0 15px 35px var(--primary-glow) !important;
+}
+.stat-box.balance h2 { color: white !important; text-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; }
+
 /* --- 9. LIQUID WATER WAVE ANIMATIONS --- */
-/* Applied to Net Balance & Student Profile Header */
 @keyframes spinWave { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-.stat-box.balance, .profile-header { 
-    background: var(--primary) !important; 
+.profile-header { 
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary)) !important; 
     border: none; overflow: hidden; position: relative; z-index: 1;
     box-shadow: 0 15px 35px var(--primary-glow) !important;
 }
@@ -172,31 +195,35 @@ html, body {
 /* Back Wave (Darker) */
 .stat-box.balance::before, .profile-header::before {
     content: ''; position: absolute; width: 250%; height: 250%;
-    top: 35%; left: -75%;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 40%;
-    animation: spinWave 10s infinite linear;
-    z-index: -1; pointer-events: none;
+    top: 35%; left: -75%; background: rgba(255, 255, 255, 0.08); border-radius: 40%;
+    animation: spinWave 10s infinite linear; z-index: -1; pointer-events: none;
 }
 
 /* Front Wave (Lighter) */
 .stat-box.balance::after, .profile-header::after {
     content: ''; position: absolute; width: 250%; height: 250%;
-    top: 40%; left: -75%;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 45%;
-    animation: spinWave 15s infinite linear;
-    z-index: -1; pointer-events: none;
+    top: 40%; left: -75%; background: rgba(255, 255, 255, 0.12); border-radius: 45%;
+    animation: spinWave 15s infinite linear; z-index: -1; pointer-events: none;
 }
 
-/* Make text pop over the waves */
-.stat-box.balance * { color: white !important; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-.profile-header h2, .profile-header p { color: white !important; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-.profile-header span { color: var(--text-heading) !important; background: white !important; text-shadow: none; }
+/* Student Profile Text Fixes */
+.profile-header h2, .profile-header p:not(:last-child) { color: white !important; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 
-/* Text specific styles */
-.stat-box p { font-size: 0.7rem; text-transform: uppercase; font-weight: 800; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.05em; }
-.stat-box.balance h2 { font-size: 2.4rem; font-weight: 900; }
+/* The Glass "Reg Date" Pill */
+.profile-header p:last-child {
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    display: inline-block; padding: 6px 14px !important;
+    border-radius: 14px !important; box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    text-shadow: none !important; margin-top: 8px;
+}
+.profile-header p:last-child span {
+    color: #ffffff !important; background: transparent !important;
+    font-weight: 900; margin-left: 4px;
+}
+
 
 /* --- 10. LOGOS & AVATARS --- */
 .logo-container { width: 110px; height: 110px; margin: 0 auto 20px auto; border-radius: 50%; padding: 4px; background: var(--primary); box-shadow: 0 15px 35px var(--primary-glow); z-index: 10; }
@@ -230,12 +257,12 @@ button[onclick^="close"], #btn-admin-view, .notification-icon { cursor: pointer;
 .modal-content button[onclick^="close"] { width: 44px !important; height: 44px !important; border-radius: 50% !important; background: #f1f5f9 !important; color: #64748b !important; border: none !important; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .modal-content button[onclick^="close"]:active { transform: scale(0.85); background: #e2e8f0 !important; }
 
-/* --- 13. LIST ITEMS (Transactions & Students) --- */
+/* --- 13. LIST ITEMS --- */
 .list-item { 
     display: flex; justify-content: space-between; align-items: center; padding: 20px; 
     background: rgba(255,255,255,0.9); border: 1px solid white; border-radius: 24px; margin-bottom: 14px; 
     box-shadow: 0 8px 20px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s var(--spring); 
-    animation: popIn 0.4s var(--spring) backwards; /* Entrances Pop */
+    animation: popIn 0.4s var(--spring) backwards;
 }
 .list-item:active { transform: scale(0.96); background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 .list-avatar { width: 55px; height: 55px; border-radius: 18px; background: #eef2ff; color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.5rem; margin-right: 18px; box-shadow: inset 0 2px 4px rgba(255,255,255,1); }
