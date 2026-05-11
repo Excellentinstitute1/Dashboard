@@ -1,19 +1,26 @@
-// REPLACE WITH YOUR GOOGLE WEB APP URL
+/* ==========================================================================
+   EXCELLENT INSTITUTE - CORE APPLICATION LOGIC
+   Handles Auth, State, Routing, Syncing, and Rendering
+   ========================================================================== */
+
+// 🛑 REPLACE THIS WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxFsBuyiWOdTMMGeOgTXhvSmAfUK_uMbdwVO945ejPvnsEOQtX9ZtMCh9RQtBWzHSVj/exec";
 
+// --- GLOBAL STATE ---
 let appState = { 
-    actualRole: null,   // The real verified login (admin, staff, student)
-    role: null,         // The currently viewed role (can be changed by Admin)
-    actualUser: null,   // The real user profile (if logged in as student)
-    currentUser: null,  // The currently viewed user profile
-    authString: "" 
+    actualRole: null,   // The verified login role ('admin', 'staff', 'student')
+    role: null,         // The CURRENT perspective being viewed
+    actualUser: null,   // The verified user profile (if logged in as student)
+    currentUser: null,  // The CURRENT user profile being viewed
+    authString: ""      // Cached password for current session
 };
 
 let appData = { students: [], transactions: [], stats: { income: 0, expense: 0, balance: 0 }, notices: [] };
 let analyticsChartInstance = null;
 
-// --- 1. BOOT APPLICATION & SPLASH SCREEN ---
+// --- 1. BOOT SEQUENCE & SPLASH SCREEN ---
 document.addEventListener("DOMContentLoaded", () => {
+    // Set default date for admission form
     document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
     bootApplication();
 });
@@ -22,32 +29,36 @@ function bootApplication() {
     const savedRole = localStorage.getItem("ei_role");
     const savedPinEnabled = localStorage.getItem("ei_usePin") === "true";
     
+    // Simulate initial load time to show off splash screen and load assets
     setTimeout(() => {
-        const loader = document.getElementById('global-loader');
-        if (loader) loader.classList.add('hide');
-        
+        hideLoader(); // Hides the global splash screen smoothly
         document.getElementById('app-container').classList.remove('hidden-initially');
         
+        // If PIN is enabled and we have a saved role, show the PIN pad
         if (savedPinEnabled && savedRole) {
-            document.getElementById('panel-standard-login').style.display = 'none';
+            document.getElementById('panel-standard-login').classList.add('hidden-initially');
             document.getElementById('panel-pin-login').classList.remove('hidden-initially');
-            document.getElementById('panel-pin-login').style.display = 'block';
-            document.getElementById('pin-welcome-text').innerText = `Welcome, ${savedRole.charAt(0).toUpperCase() + savedRole.slice(1)}`;
+            
+            // Format welcome text (e.g. "Welcome, Admin")
+            const formattedRole = savedRole.charAt(0).toUpperCase() + savedRole.slice(1);
+            document.getElementById('pin-welcome-text').innerText = `Welcome, ${formattedRole}`;
         }
     }, 1500); 
 }
 
 function showLoader() { 
     const loader = document.getElementById('global-loader');
-    if (loader) loader.classList.remove('hide'); 
+    loader.classList.remove('hide'); 
 }
 
 function hideLoader() { 
     const loader = document.getElementById('global-loader');
-    if (loader) loader.classList.add('hide'); 
+    loader.classList.add('hide'); 
 }
 
-// --- 2. AUTHENTICATION & LOGIN ---
+// --- 2. AUTHENTICATION (STANDARD & PIN) ---
+
+// A. Standard Login
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const userid = document.getElementById('userid').value.trim();
@@ -66,6 +77,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
             document.getElementById('login-error').innerText = result.error; 
             document.getElementById('login-error').classList.remove('hidden-initially');
         } else {
+            // Set State
             appState.actualRole = result.role;
             appState.role = result.role; 
             appState.actualUser = result.userProfile;
@@ -73,20 +85,23 @@ document.getElementById('login-form').addEventListener('submit', async function(
             appState.authString = pass;
             appData = result.data; 
             
+            // Handle Remember Me (prepares for PIN setup)
             if (remember) {
                 localStorage.setItem("ei_role", result.role);
                 localStorage.setItem("ei_auth", pass); 
             }
-            setupApplicationUI(); hideLoader();
+            
+            setupApplicationUI(); 
+            hideLoader();
         }
     } catch (error) { 
         hideLoader(); 
-        document.getElementById('login-error').innerText = "Network Error.";
+        document.getElementById('login-error').innerText = "Network Error. Please check connection.";
         document.getElementById('login-error').classList.remove('hidden-initially'); 
     }
 });
 
-// PIN Login
+// B. PIN Unlock Login
 document.getElementById('pin-login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const pin = document.getElementById('pin-input').value;
@@ -101,50 +116,51 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
         
         if (result.error) {
             hideLoader(); 
+            document.getElementById('pin-error').innerText = result.error;
             document.getElementById('pin-error').classList.remove('hidden-initially'); 
-            document.getElementById('pin-input').value = '';
+            document.getElementById('pin-input').value = ''; // Clear input on fail
         } else {
             appState.actualRole = result.role; 
             appState.role = result.role; 
             appData = result.data; 
-            setupApplicationUI(); hideLoader();
+            setupApplicationUI(); 
+            hideLoader();
         }
     } catch (error) { 
         hideLoader(); 
+        document.getElementById('pin-error').innerText = "Network Error.";
         document.getElementById('pin-error').classList.remove('hidden-initially'); 
     }
 });
 
-// --- 3. UI ROUTING & ADMIN PREVIEW ---
+// --- 3. UI ROUTING & PERSPECTIVE SWITCHER ---
+
 function setupApplicationUI() {
-    // Reveal app structure
+    // Hide Login Screen, Show Main Shell
     document.getElementById('screen-login').classList.remove('active');
     document.getElementById('main-header').classList.remove('hidden-initially');
     document.getElementById('main-content').classList.remove('hidden-initially');
     document.getElementById('bottom-nav').classList.remove('hidden-initially');
 
-    // Admin Perspective Button Logic
+    // Admin Perspective Logic
+    const btnAdminView = document.getElementById('btn-admin-view');
     if (appState.actualRole === 'admin') {
-        const btnAdminView = document.getElementById('btn-admin-view');
         btnAdminView.classList.remove('hidden-initially');
-        btnAdminView.style.display = 'flex'; // Ensure it is visible
-        populatePreviewList();
+        populatePreviewList(); // Fill the student dropdown for preview mode
+    } else {
+        btnAdminView.classList.add('hidden-initially');
     }
 
-    // Role-specific UI visibility based on CURRENT role
+    // Module Visibility based on CURRENT role being viewed
     document.getElementById('nav-analytics-btn').style.display = (appState.role === 'admin') ? 'flex' : 'none';
     document.getElementById('nav-students-btn').style.display = (appState.role === 'student') ? 'none' : 'flex';
     document.getElementById('admin-staff-modules').style.display = (appState.role === 'student') ? 'none' : 'block';
     
-    // View Routing
-    if (appState.role === 'admin') {
-        document.getElementById('admin-broadcast-panel').style.display = 'block';
+    // Route to appropriate home screen
+    if (appState.role === 'admin' || appState.role === 'staff') {
+        document.getElementById('admin-broadcast-panel').style.display = (appState.role === 'admin') ? 'block' : 'none';
         updateDashboardFinancials(); 
         checkDuesSilently(); 
-        switchTab('dashboard');
-    } else if (appState.role === 'staff') {
-        document.getElementById('admin-broadcast-panel').style.display = 'none';
-        updateDashboardFinancials(); 
         switchTab('dashboard');
     } else if (appState.role === 'student') {
         renderStudentDashboard(); 
@@ -152,49 +168,18 @@ function setupApplicationUI() {
     }
 }
 
-// Admin "View As" Functions
-function populatePreviewList() {
-    const select = document.getElementById('preview-student-select');
-    select.innerHTML = '<option value="" disabled selected>Select a Student...</option>';
-    if (appData.students) {
-        appData.students.forEach((st, index) => {
-            select.innerHTML += `<option value="${index}">${st.name} (${st.course})</option>`;
-        });
-    }
-}
-
-function openViewSwitcher() { document.getElementById('view-switcher-modal').classList.add('active'); }
-function closeViewSwitcher() { document.getElementById('view-switcher-modal').classList.remove('active'); }
-
-function changeAdminView(targetRole) {
-    if (targetRole === 'student') {
-        const idx = document.getElementById('preview-student-select').value;
-        if (idx === "") return alert("Please select a student to preview.");
-        appState.currentUser = appData.students[idx];
-    } else {
-        appState.currentUser = appState.actualUser; // Reset to self
-    }
-    
-    appState.role = targetRole;
-    closeViewSwitcher();
-    document.getElementById('admin-view-banner').classList.remove('hidden-initially');
-    setupApplicationUI(); // Re-trigger UI render
-}
-
-function exitAdminPreview() {
-    appState.role = appState.actualRole;
-    appState.currentUser = appState.actualUser;
-    document.getElementById('admin-view-banner').classList.add('hidden-initially');
-    setupApplicationUI();
-}
-
 function switchTab(tabId) {
     showLoader();
+    
     setTimeout(() => {
+        // Hide all views & deselect nav buttons
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('#bottom-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
+        
+        // Show target view
         document.getElementById(`view-${tabId}`).classList.add('active');
         
+        // Tab metadata
         const titles = {
             'dashboard': {title: 'Dashboard', sub: 'Financial Overview', nav: 0},
             'students': {title: 'Students', sub: 'Database', nav: 1},
@@ -212,50 +197,119 @@ function switchTab(tabId) {
             if(titles[tabId].nav >= 0) document.querySelectorAll('#bottom-nav .nav-btn')[titles[tabId].nav].classList.add('active');
         }
 
+        // Trigger specific renderers
         if(tabId === 'students') renderStudents();
         if(['job','print','expense'].includes(tabId)) renderList(tabId);
         if(tabId === 'analytics') renderChart();
 
         hideLoader();
-    }, 200);
+    }, 200); // 200ms delay for smooth transition feel
 }
 
-// --- 4. SECURE DATABASE ACTIONS ---
-async function syncDatabase(actionDesc) {
-    // Only the ACTUAL admin can write data, regardless of what role they are previewing.
-    if (appState.actualRole !== 'admin') { alert("Action Denied: View Only Mode."); return false; }
-    showLoader();
-    
-    const payload = { password: "admin", data: appData }; 
-    
-    try {
-        const response = await fetch(GAS_URL, { method: 'POST', headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
-        const result = await response.json();
-        hideLoader();
-        if (result.error) { alert("Server Error: " + result.error); return false; }
-        return true;
-    } catch (error) {
-        hideLoader(); alert("Network error. Sync failed."); return false;
+// --- ADMIN PREVIEW FUNCTIONS ---
+function populatePreviewList() {
+    const select = document.getElementById('preview-student-select');
+    select.innerHTML = '<option value="" disabled selected>Select a Student...</option>';
+    if (appData.students) {
+        appData.students.forEach((st, index) => {
+            select.innerHTML += `<option value="${st.id}">${st.name} (${st.course})</option>`;
+        });
     }
 }
 
-// --- 5. NOTIFICATIONS & MODALS ---
+function openViewSwitcher() { document.getElementById('view-switcher-modal').classList.add('active'); }
+function closeViewSwitcher() { document.getElementById('view-switcher-modal').classList.remove('active'); }
+
+function changeAdminView(targetRole) {
+    if (targetRole === 'student') {
+        const targetId = document.getElementById('preview-student-select').value;
+        if (!targetId) return alert("Please select a student to preview.");
+        appState.currentUser = appData.students.find(s => s.id === targetId);
+    } else {
+        appState.currentUser = appState.actualUser; 
+    }
+    
+    appState.role = targetRole;
+    closeViewSwitcher();
+    document.getElementById('admin-view-banner').classList.remove('hidden-initially');
+    setupApplicationUI();
+}
+
+function exitAdminPreview() {
+    appState.role = appState.actualRole;
+    appState.currentUser = appState.actualUser;
+    document.getElementById('admin-view-banner').classList.add('hidden-initially');
+    setupApplicationUI();
+}
+
+// --- 4. DATA SYNCING LOGIC ---
+async function syncDatabase(actionDesc) {
+    // SECURITY: Only the ACTUAL admin can ever push data to the server. Staff/Students are blocked.
+    if (appState.actualRole !== 'admin') { 
+        alert("Action Denied: You do not have Write Permissions."); 
+        return false; 
+    }
+    
+    showLoader();
+    
+    // The backend `doPost` specifically requires { password: "admin", data: ... }
+    const payload = { password: "admin", data: appData }; 
+    
+    try {
+        const response = await fetch(GAS_URL, { 
+            method: 'POST', 
+            headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+            body: JSON.stringify(payload) 
+        });
+        const result = await response.json();
+        hideLoader();
+        if (result.error) { 
+            alert("Server Sync Error: " + result.error); 
+            return false; 
+        }
+        return true;
+    } catch (error) {
+        hideLoader(); 
+        alert("Network error. Database sync failed. Changes may be lost on reload."); 
+        return false;
+    }
+}
+
+// --- 5. NOTIFICATIONS & SETTINGS MODALS ---
 function checkDuesSilently() {
-    let count = 0; appData.students.forEach(st => { if((st.totalFee - st.paidFee) > 0) count++; });
-    if(count > 0) document.getElementById('notif-dot').classList.remove('hidden-initially');
+    let count = 0; 
+    appData.students.forEach(st => { 
+        if((st.totalFee - st.paidFee) > 0) count++; 
+    });
+    
+    const dot = document.getElementById('notif-dot');
+    if(count > 0) dot.classList.remove('hidden-initially');
+    else dot.classList.add('hidden-initially');
 }
 
 function openNotificationModal() {
-    const listEl = document.getElementById('notif-list-details'); listEl.innerHTML = '';
+    const listEl = document.getElementById('notif-list-details'); 
+    listEl.innerHTML = '';
     let found = false;
+    
     appData.students.forEach(st => {
         const dues = st.totalFee - st.paidFee;
         if(dues > 0) {
             found = true;
-            listEl.innerHTML += `<div class="flex justify-between items-center py-3 border-b last:border-0"><div><p style="font-weight: 800; font-size: 0.85rem; color: var(--text-heading);">${st.name}</p><p style="font-size: 0.65rem; color: var(--text-muted);">${st.course}</p></div><p style="font-weight: 900; color: var(--danger);">₹${dues}</p></div>`;
+            listEl.innerHTML += `
+                <div class="flex justify-between items-center py-4 border-b border-slate-100 last:border-0" onclick="openStudentDetailModal('${st.id}')">
+                    <div>
+                        <p style="font-weight: 800; font-size: 0.9rem; color: var(--text-heading);">${st.name}</p>
+                        <p style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 2px;">${st.phone}</p>
+                    </div>
+                    <div class="text-right">
+                        <span style="font-size: 0.6rem; color: var(--danger); font-weight: 800; text-transform: uppercase;">Due</span>
+                        <p style="font-weight: 900; font-size: 1.1rem; color: var(--danger);">₹${dues}</p>
+                    </div>
+                </div>`;
         }
     });
-    if(!found) listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 16px 0;">No pending dues.</p>`;
+    if(!found) listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 24px 0; font-weight: 700;">No pending dues detected.</p>`;
     
     document.getElementById('modal-notifications').classList.add('active');
 }
@@ -271,30 +325,73 @@ function closeSettingsModal() { document.getElementById('modal-settings').classL
 
 async function promptSetPin() {
     closeSettingsModal();
-    const pin = prompt("Enter a new 4-Digit PIN:");
-    if(!pin || !/^\d{4}$/.test(pin)) return alert("Must be exactly 4 digits.");
+    const pin = prompt("Enter a new 4-Digit PIN for quick access:");
+    if(!pin || !/^\d{4}$/.test(pin)) return alert("PIN must be exactly 4 numbers.");
     
-    const masterPass = prompt("Enter Master Admin Password to authorize this change:");
+    const masterPass = prompt("Enter Master Admin Password to authorize this security change:");
     if(!masterPass) return;
 
     showLoader();
     try {
-        const res = await fetch(GAS_URL, { method: 'POST', headers: {"Content-Type": "text/plain"}, body: JSON.stringify({action: 'setPin', role: appState.actualRole, pin: pin, auth: masterPass}) });
+        const res = await fetch(GAS_URL, { 
+            method: 'POST', 
+            headers: {"Content-Type": "text/plain"}, 
+            body: JSON.stringify({action: 'setPin', role: appState.actualRole, pin: pin, auth: masterPass}) 
+        });
         const result = await res.json();
         hideLoader();
+        
         if(result.success) {
             localStorage.setItem("ei_usePin", "true");
-            alert("PIN saved successfully. You can use it on your next login.");
-        } else { alert(result.error); }
-    } catch(e) { hideLoader(); alert("Network error saving PIN."); }
+            alert("PIN saved successfully! You can use it on your next login.");
+        } else { 
+            alert(result.error); 
+        }
+    } catch(e) { 
+        hideLoader(); 
+        alert("Network error. Could not save PIN."); 
+    }
 }
 
 function clearSavedLogin() {
-    localStorage.removeItem("ei_role"); localStorage.removeItem("ei_usePin"); localStorage.removeItem("ei_auth");
-    window.location.reload(); 
+    localStorage.removeItem("ei_role"); 
+    localStorage.removeItem("ei_usePin"); 
+    localStorage.removeItem("ei_auth");
+    window.location.reload(); // Hard reset application state
 }
 
-// --- 6. MODULES (Add Student, Expense, etc.) ---
+// --- 6. STUDENT DETAILS MODAL ---
+function openStudentDetailModal(studentId) {
+    // Only Admin or Staff should be able to open this
+    if (appState.role === 'student') return; 
+    
+    const st = appData.students.find(s => s.id === studentId);
+    if (!st) return;
+
+    const dues = st.totalFee - st.paidFee;
+    
+    // Populate Modal (NO PASSWORDS EXPOSED)
+    document.getElementById('detail-avatar').innerText = st.name.charAt(0).toUpperCase();
+    document.getElementById('detail-name').innerText = st.name;
+    document.getElementById('detail-id').innerText = `ID: ${st.id}`;
+    document.getElementById('detail-phone').innerText = st.phone;
+    document.getElementById('detail-date').innerText = st.date;
+    document.getElementById('detail-course').innerText = st.course;
+    
+    document.getElementById('detail-total').innerText = `₹${st.totalFee}`;
+    document.getElementById('detail-paid').innerText = `₹${st.paidFee}`;
+    document.getElementById('detail-due').innerText = `₹${dues}`;
+
+    // Close notification modal if open, then open detail modal
+    closeNotificationModal();
+    setTimeout(() => {
+        document.getElementById('modal-student-detail').classList.add('active');
+    }, 100);
+}
+function closeStudentDetailModal() { document.getElementById('modal-student-detail').classList.remove('active'); }
+
+
+// --- 7. FORM SUBMISSIONS ---
 function recalcStats() {
     appData.stats.income = 0; appData.stats.expense = 0;
     appData.transactions.forEach(tx => {
@@ -305,9 +402,10 @@ function recalcStats() {
     updateDashboardFinancials();
 }
 
+// New Admission
 document.getElementById('admission-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    if(appState.actualRole !== 'admin') return alert("Admin access required.");
+    if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can register students.");
     
     const name = document.getElementById('reg-name').value;
     const phone = document.getElementById('reg-phone').value;
@@ -324,19 +422,24 @@ document.getElementById('admission-form').addEventListener('submit', async funct
     }
     
     recalcStats();
-    if(await syncDatabase("Add Student")) {
-        alert(`Registered! Pass: EI${name.split(' ')[0]}${dateStr.substring(0,4)}`);
-        this.reset(); document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
+    if(await syncDatabase("Register Student")) {
+        const year = dateStr.substring(0,4);
+        const firstName = name.split(' ')[0];
+        alert(`Success!\nStudent Password Auto-Generated: EI${firstName}${year}`);
+        
+        this.reset(); 
+        document.getElementById('reg-date').value = new Date().toISOString().split('T')[0];
         switchTab('students');
     }
 });
 
+// Generic Income/Expense Forms
 ['job', 'print', 'expense'].forEach(type => {
     const form = document.getElementById(`${type}-form`);
     if(form) {
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            if(appState.actualRole !== 'admin') return alert("Admin access required.");
+            if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can record finances.");
             
             let title = "", desc = "", amount = 0, txType = "income";
             if (type === 'job') { title = `Job Desk: ${document.getElementById('job-name').value}`; desc = document.getElementById('job-post').value; amount = parseFloat(document.getElementById('job-amount').value); }
@@ -345,25 +448,34 @@ document.getElementById('admission-form').addEventListener('submit', async funct
 
             appData.transactions.push({ id: 'TXN'+Date.now(), type: txType, title: title, description: desc, amount: amount, date: new Date().toISOString().split('T')[0] });
             recalcStats();
-            if(await syncDatabase(`${type} Entry`)) { this.reset(); renderList(type); }
+            
+            if(await syncDatabase(`Save ${type} Entry`)) { 
+                this.reset(); 
+                renderList(type); 
+            }
         });
     }
 });
 
+// Admin Broadcast
 async function sendBroadcast() {
-    if(appState.actualRole !== 'admin') return alert("Admin access required.");
-    const title = document.getElementById('bc-title').value; const msg = document.getElementById('bc-msg').value;
-    if(!title || !msg) return alert("Enter both title and message.");
+    if(appState.actualRole !== 'admin') return alert("Action Denied: Only Admins can send notices.");
+    
+    const title = document.getElementById('bc-title').value; 
+    const msg = document.getElementById('bc-msg').value;
+    if(!title || !msg) return alert("Please enter both a title and message.");
     
     if(!appData.notices) appData.notices = [];
     appData.notices.unshift({ title: title, message: msg, date: new Date().toLocaleDateString('en-IN') });
     
     if(await syncDatabase("Broadcast Notice")) {
-        alert("Notice sent to all students!"); document.getElementById('bc-title').value = ''; document.getElementById('bc-msg').value = '';
+        alert("Notice successfully broadcasted to all students!"); 
+        document.getElementById('bc-title').value = ''; 
+        document.getElementById('bc-msg').value = '';
     }
 }
 
-// --- 7. RENDERING LOGIC ---
+// --- 8. RENDERERS ---
 function updateDashboardFinancials() {
     document.getElementById('dash-balance').innerText = `₹${appData.stats.balance.toLocaleString('en-IN')}`;
     document.getElementById('dash-income').innerText = `₹${appData.stats.income.toLocaleString('en-IN')}`;
@@ -372,30 +484,63 @@ function updateDashboardFinancials() {
 
 function renderStudents() {
     const query = (document.getElementById('student-search').value || '').toLowerCase();
-    const listEl = document.getElementById('student-list'); listEl.innerHTML = '';
+    const listEl = document.getElementById('student-list'); 
+    listEl.innerHTML = '';
+    
     const filtered = appData.students.filter(s => s.name.toLowerCase().includes(query) || s.phone.includes(query));
     
-    if (filtered.length === 0) return listEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No students found.</p>';
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No students found.</p>';
+        return;
+    }
     
     filtered.forEach(st => {
         const dues = st.totalFee - st.paidFee;
         const dueColor = dues > 0 ? 'var(--danger)' : 'var(--success)';
-        listEl.innerHTML += `<div class="list-item"><div style="display: flex; align-items: center;"><div class="list-avatar">${st.name.charAt(0).toUpperCase()}</div><div class="list-info"><h4>${st.name}</h4><p>${st.phone} • ${st.course}</p></div></div><div class="list-value"><span>Due</span><h3 style="color: ${dueColor}">₹${dues}</h3></div></div>`;
+        
+        listEl.innerHTML += `
+            <div class="list-item" onclick="openStudentDetailModal('${st.id}')">
+                <div style="display: flex; align-items: center;">
+                    <div class="list-avatar">${st.name.charAt(0).toUpperCase()}</div>
+                    <div class="list-info">
+                        <h4>${st.name}</h4>
+                        <p>${st.phone} • ${st.course}</p>
+                    </div>
+                </div>
+                <div class="list-value">
+                    <span>Due</span>
+                    <h3 style="color: ${dueColor}">₹${dues}</h3>
+                </div>
+            </div>`;
     });
 }
 
 function renderList(type) {
-    const listEl = document.getElementById(`${type}-list`); listEl.innerHTML = '';
+    const listEl = document.getElementById(`${type}-list`); 
+    listEl.innerHTML = '';
+    
     let f = []; 
     if(type==='job') f=appData.transactions.filter(t=>t.title.includes('Job Desk')); 
     if(type==='print') f=appData.transactions.filter(t=>t.title.includes('Print Desk')); 
     if(type==='expense') f=appData.transactions.filter(t=>t.type==='expense');
     
-    if(f.length===0) return listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No recent records.</p>`;
+    if(f.length===0) {
+        listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 20px;">No recent records.</p>`;
+        return;
+    }
     
     f.slice().reverse().slice(0, 15).forEach(tx => {
         const isInc = tx.type === 'income';
-        listEl.innerHTML += `<div class="list-item"><div class="list-info"><h4>${tx.title.replace('Job Desk: ','').replace('Print Desk: ','')}</h4><p>${tx.date}</p></div><div class="list-value"><h3 style="color: ${isInc ? 'var(--success)' : 'var(--danger)'}">${isInc ? '+' : '-'}₹${tx.amount}</h3></div></div>`;
+        listEl.innerHTML += `
+            <div class="list-item" style="cursor: default; pointer-events: none;">
+                <div class="list-info">
+                    <h4>${tx.title.replace('Job Desk: ','').replace('Print Desk: ','')}</h4>
+                    <p>${tx.date}</p>
+                </div>
+                <div class="list-value">
+                    <h3 style="color: ${isInc ? 'var(--success)' : 'var(--danger)'}">${isInc ? '+' : '-'}₹${tx.amount}</h3>
+                </div>
+            </div>`;
     });
 }
 
@@ -413,22 +558,33 @@ function renderStudentDashboard() {
     document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
-    const noticesEl = document.getElementById('stu-notices'); noticesEl.innerHTML = '';
+    const noticesEl = document.getElementById('stu-notices'); 
+    noticesEl.innerHTML = '';
+    
     if(appData.notices && appData.notices.length > 0) {
         appData.notices.forEach(n => {
-            noticesEl.innerHTML += `<div style="border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 12px;"><h4 style="font-size: 0.85rem; font-weight: 800; color: var(--primary);">${n.title}</h4><p style="font-size: 0.75rem; color: var(--text-main); margin-top: 4px;">${n.message}</p><p style="font-size: 0.65rem; color: var(--text-muted); margin-top: 6px;">${n.date}</p></div>`;
+            noticesEl.innerHTML += `
+                <div style="border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 12px;">
+                    <h4 style="font-size: 0.85rem; font-weight: 800; color: var(--primary);">${n.title}</h4>
+                    <p style="font-size: 0.75rem; font-weight: 600; color: var(--text-main); margin-top: 4px;">${n.message}</p>
+                    <p style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted); margin-top: 6px; text-transform: uppercase;">${n.date}</p>
+                </div>`;
         });
-    } else { noticesEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem;">No notices from the Institute.</p>'; }
+    } else { 
+        noticesEl.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; font-weight: 700;">No notices from the Institute.</p>'; 
+    }
 }
 
 function renderChart() {
     if(analyticsChartInstance) analyticsChartInstance.destroy();
     let incMap = {}, expMap = {};
+    
     appData.transactions.forEach(tx => {
         let m = tx.date.substring(0,7);
         if(tx.type==='income') incMap[m] = (incMap[m]||0) + parseFloat(tx.amount);
         if(tx.type==='expense') expMap[m] = (expMap[m]||0) + parseFloat(tx.amount);
     });
+    
     let labels = Object.keys(incMap).concat(Object.keys(expMap)).filter((v,i,a)=>a.indexOf(v)===i).sort().slice(-6);
     
     analyticsChartInstance = new Chart(document.getElementById('analyticsChart').getContext('2d'), { 
