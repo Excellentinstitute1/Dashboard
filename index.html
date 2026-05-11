@@ -15,23 +15,23 @@
 </head>
 <body>
 
-    <!-- 1. GLOBAL SPLASH SCREEN (Fixes screen freeze and handles loading) -->
+    <!-- GLOBAL SPLASH SCREEN -->
     <div id="global-loader">
         <div class="logo-container">
             <img src="excellent institute logo.jpeg" class="circular-logo" onerror="this.src='https://ui-avatars.com/api/?name=EI&background=4f46e5&color=fff'">
         </div>
-        <h2 style="font-weight: 800; color: var(--primary-dark); margin-top: 1rem; font-size: 1.5rem; letter-spacing: -0.02em;">Excellent Institute</h2>
-        <p style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase;">ERP Portal</p>
+        <h2 style="font-weight: 900; color: var(--primary-dark); margin-top: 1rem; font-size: 1.5rem; letter-spacing: -0.02em;">Excellent Institute</h2>
+        <p style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase;">ERP Portal</p>
         <div class="spinner"></div>
     </div>
 
-    <!-- 2. MAIN APP CONTAINER -->
+    <!-- MAIN APP CONTAINER -->
     <div id="app-container" class="hidden-initially">
 
         <!-- Admin Preview Mode Banner -->
-        <div id="admin-view-banner" class="hidden-initially" style="background: var(--danger); color: white; text-align: center; font-size: 0.7rem; font-weight: 800; padding: 6px; z-index: 60; display: flex; justify-content: center; align-items: center;">
+        <div id="admin-view-banner" class="hidden-initially" style="background: var(--danger); color: white; text-align: center; font-size: 0.75rem; font-weight: 800; padding: 8px; z-index: 60; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(244,63,94,0.3);">
             <i class="fa-solid fa-eye-slash mr-2"></i> Admin Preview Mode Active 
-            <button onclick="exitAdminPreview()" style="margin-left: 12px; background: white; color: var(--danger); border: none; padding: 4px 10px; border-radius: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Exit</button>
+            <button onclick="exitAdminPreview()" style="margin-left: 16px; background: white; color: var(--danger); border: none; padding: 4px 12px; border-radius: 12px; font-weight: 900; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">Exit</button>
         </div>
 
         <!-- SCREEN: LOGIN -->
@@ -47,13 +47,24 @@
                     <p style="font-size: 0.7rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 24px;">Secure Unified Login</p>
                     
                     <form id="login-form" style="text-align: left;">
-                        <div class="input-group">
+                        <div class="input-group mb-4">
                             <label><i class="fa-solid fa-user text-indigo-400 mr-1"></i> User ID</label>
                             <input type="text" id="userid" class="form-input" placeholder="Phone No. or 'excellent'" required>
+                            <!-- User ID Hint -->
+                            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; padding-left: 6px; line-height: 1.5;">
+                                <strong>Admin/Staff:</strong> 'excellent'<br>
+                                <strong>Student:</strong> 10-Digit Registered Phone No.
+                            </div>
                         </div>
-                        <div class="input-group">
+                        <div class="input-group mb-4">
                             <label><i class="fa-solid fa-lock text-indigo-400 mr-1"></i> Password</label>
                             <input type="password" id="password" class="form-input" placeholder="Enter password..." required>
+                            <!-- Password Hint -->
+                            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; padding-left: 6px; line-height: 1.5;">
+                                <strong>Staff Pass:</strong> 9658<br>
+                                <strong>Student Pass:</strong> EI + First Name + Reg. Year<br>
+                                <span style="opacity: 0.7;">(e.g., if Rahul registered in 2026 ➔ <strong>EIRahul2026</strong>)</span>
+                            </div>
                         </div>
                         
                         <div class="flex items-center justify-between mt-2 mb-4 px-1">
@@ -93,7 +104,7 @@
                 <p id="page-subtitle">Financial Overview</p>
             </div>
             <div style="display: flex; gap: 16px; align-items: center;">
-                <button id="btn-admin-view" onclick="openViewSwitcher()" class="hidden-initially" style="background: none; border: none; color: var(--primary-light); font-size: 1.4rem; cursor: pointer;">
+                <button id="btn-admin-view" onclick="openViewSwitcher()" class="hidden-initially" style="background: rgba(255,255,255,0.15); border: none; color: white; width: 35px; height: 35px; border-radius: 50%; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s;">
                     <i class="fa-solid fa-eye"></i>
                 </button>
                 <div class="notification-icon" onclick="openNotificationModal()">
@@ -189,7 +200,7 @@
 
             <!-- VIEW: STUDENTS LIST -->
             <div id="view-students" class="view-section">
-                <div class="input-group sticky top-0 z-10 bg-bg-base pb-2 pt-1">
+                <div class="input-group sticky top-0 z-10 pb-2 pt-1" style="background: var(--bg-base);">
                     <input type="text" id="student-search" class="form-input shadow-sm" placeholder="Search by name or phone..." onkeyup="renderStudents()">
                 </div>
                 <div id="student-list">
@@ -299,7 +310,11 @@
         <div id="view-switcher-modal" class="modal-overlay">
             <div class="modal-content">
                 <div class="modal-pull-bar"></div>
-                <h3 style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading); margin-bottom: 16px; border-bottom: 1px solid var(--border-light); padding-bottom: 12px;">Admin: Switch Perspective</h3>
+                <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-2">
+                    <h3 style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);">Admin Perspective</h3>
+                    <button onclick="closeViewSwitcher()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button>
+                </div>
+                
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <button onclick="changeAdminView('admin')" style="width: 100%; text-align: left; padding: 14px; border-radius: 14px; background: #eef2ff; color: var(--primary); font-weight: 800; border: none; cursor: pointer;"><i class="fa-solid fa-user-shield w-6"></i> Admin (Full Access)</button>
                     <button onclick="changeAdminView('staff')" style="width: 100%; text-align: left; padding: 14px; border-radius: 14px; background: #f1f5f9; color: var(--text-main); font-weight: 800; border: none; cursor: pointer;"><i class="fa-solid fa-user-tie w-6"></i> Staff (Read Only)</button>
