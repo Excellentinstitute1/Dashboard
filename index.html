@@ -28,14 +28,14 @@
         <img src="excellent institute logo.jpeg" alt="Watermark" class="w-96 h-96 object-contain opacity-[0.03] grayscale">
     </div>
 
-    <!-- 2. GLOBAL SPLASH SCREEN -->
+    <!-- 2. GLOBAL SPLASH SCREEN (Now with orbiting logo spinner) -->
     <div id="global-loader" class="relative z-[9999]">
-        <div class="logo-container">
+        <div class="splash-logo-wrapper">
+            <div class="splash-spinner"></div>
             <img src="excellent institute logo.jpeg" class="circular-logo" onerror="this.src='https://ui-avatars.com/api/?name=EI&background=4f46e5&color=fff'">
         </div>
         <h2 style="font-weight: 900; color: var(--primary-dark); margin-top: 1rem; font-size: 1.5rem; letter-spacing: -0.02em;">Excellent Institute</h2>
         <p style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase;">ERP Portal</p>
-        <div class="spinner"></div>
     </div>
 
     <!-- 3. MAIN APP CONTAINER -->
@@ -200,14 +200,12 @@
                 </form>
             </div>
 
-            <!-- VIEW: STUDENTS LIST (Database) -->
+            <!-- VIEW: STUDENTS LIST -->
             <div id="view-students" class="view-section">
                 <div class="input-group sticky top-0 z-10 pb-2 pt-1" style="background: var(--bg-base);">
                     <input type="text" id="student-search" class="form-input shadow-sm" placeholder="Search by name or phone..." onkeyup="renderStudents()">
                 </div>
-                <div id="student-list">
-                    <!-- Populated via JS -->
-                </div>
+                <div id="student-list"></div>
             </div>
 
             <!-- VIEW: JOB DESK -->
@@ -279,7 +277,7 @@
             </div>
         </div>
 
-        <!-- MODAL: DETAILED STUDENT PROFILE (For Admin/Staff view) -->
+        <!-- MODAL: DETAILED STUDENT PROFILE -->
         <div id="modal-student-detail" class="modal-overlay">
             <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
                 <div class="modal-pull-bar"></div>
@@ -375,7 +373,6 @@
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light);">
                         <p style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">View as Student:</p>
                         <select id="preview-student-select" class="form-input cursor-pointer" style="margin-bottom: 12px;">
-                            <!-- Populated dynamically -->
                         </select>
                         <button onclick="changeAdminView('student')" class="btn-primary" style="padding: 12px; font-size: 0.9rem;">Preview Student Dashboard</button>
                     </div>
