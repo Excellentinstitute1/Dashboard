@@ -48,7 +48,7 @@
             <img src="excellent institute logo.jpeg" class="circular-logo" onerror="this.src='https://ui-avatars.com/api/?name=EI&background=4f46e5&color=fff'">
         </div>
         <h2 style="font-weight: 900; color: var(--primary-dark); margin-top: 1rem; font-size: 1.5rem; letter-spacing: -0.02em;">Excellent Institute</h2>
-        <p style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase;">ERP Portal</p>
+        <p style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase;">Student & Staff Portal</p>
     </div>
 
     <!-- MAIN APP CONTAINER -->
@@ -75,16 +75,18 @@
                     <form id="login-form" style="text-align: left;">
                         <div class="input-group mb-4">
                             <label><i class="fa-solid fa-user text-indigo-400 mr-1"></i> User ID</label>
-                            <input type="text" id="userid" class="form-input" placeholder="Phone No." required>
+                            <input type="text" id="userid" class="form-input" placeholder="Enter Phone No." required>
+                            <!-- CLEAN STUDENT HINT ONLY -->
                             <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; padding-left: 6px; line-height: 1.5;">
-                                <strong>Student ID:</strong> 10-Digit Registered Phone No.
+                                <strong>Hint:</strong> Your 10-Digit Registered Phone No.
                             </div>
                         </div>
                         <div class="input-group mb-4">
                             <label><i class="fa-solid fa-lock text-indigo-400 mr-1"></i> Password</label>
                             <input type="password" id="password" class="form-input" placeholder="Enter password..." required>
+                            <!-- CLEAN STUDENT HINT ONLY -->
                             <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; padding-left: 6px; line-height: 1.5;">
-                                <strong>Password Hint:</strong> EI + First Name + Reg. Year
+                                <strong>Hint:</strong> EI + First Name + Reg. Year <br>(e.g., EIRahul2026)
                             </div>
                         </div>
                         <div class="flex items-center justify-between mt-2 mb-4 px-1">
@@ -136,21 +138,21 @@
         <!-- MAIN SCROLLABLE CONTENT -->
         <main id="main-content" class="content-area custom-scrollbar hidden-initially">
             
-            <!-- VIEW: DASHBOARD (Admin/Staff Only) -->
+            <!-- VIEW: DASHBOARD (Admin/Staff ONLY) -->
             <div id="view-dashboard" class="view-section">
                 <div class="stat-grid two-col">
-                    <div class="stat-box income ripple-target" onclick="openHistoryModal('income')">
+                    <div class="stat-box income ripple-target" onclick="openHistoryModal('income')" style="cursor: pointer;">
                         <p>Total In</p><h2 id="dash-income">₹0</h2>
                     </div>
-                    <div class="stat-box expense ripple-target" onclick="openHistoryModal('expense')">
+                    <div class="stat-box expense ripple-target" onclick="openHistoryModal('expense')" style="cursor: pointer;">
                         <p>Total Out</p><h2 id="dash-expense">₹0</h2>
                     </div>
                 </div>
                 <div class="stat-grid">
-                    <div class="stat-box balance ripple-target" onclick="openHistoryModal('balance')">
+                    <div class="stat-box balance ripple-target" onclick="openHistoryModal('balance')" style="background: var(--grad-dark); cursor: pointer; border: none;">
                         <p style="color: var(--text-muted);">Net Balance</p>
                         <div class="flex justify-between items-center">
-                            <h2 id="dash-balance">₹0</h2>
+                            <h2 id="dash-balance" style="color: #ffffff; text-shadow: 0 2px 10px rgba(255,255,255,0.2);">₹0</h2>
                             <i class="fa-solid fa-vault text-4xl" style="color: rgba(255,255,255,0.15);"></i>
                         </div>
                     </div>
@@ -167,7 +169,6 @@
                     </div>
                 </div>
 
-                <!-- Admin Broadcast Panel -->
                 <div id="admin-broadcast-panel" class="hidden-initially premium-card" style="margin-top: 16px; background: linear-gradient(to right, #f8fafc, #eef2ff);">
                     <h4 style="font-size: 0.85rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 12px;"><i class="fa-solid fa-bullhorn mr-2"></i>Send Institute Alert</h4>
                     <input type="text" id="bc-title" class="form-input" style="padding: 0.75rem; margin-bottom: 8px;" placeholder="Alert Title">
@@ -183,7 +184,7 @@
                 </div>
             </div>
 
-            <!-- VIEW: FILE UPLOADS (Admin/Staff Only) -->
+            <!-- VIEW: FILE UPLOADS (Admin/Staff ONLY) -->
             <div id="view-uploads" class="view-section">
                 <form id="upload-material-form" class="premium-card p-5" style="border-top: 4px solid var(--primary);">
                     <div class="flex items-center mb-4 border-b pb-2">
@@ -224,62 +225,58 @@
                 </form>
             </div>
 
-            <!-- ========================================== -->
-            <!-- THE DEDICATED STUDENT VIEWS                -->
-            <!-- ========================================== -->
-            
-            <!-- VIEW: STUDENT PROFILE (Tab 1) -->
-            <div id="view-student-profile" class="view-section">
-                <div class="premium-card profile-header" style="padding: 30px 20px;">
-                    <div id="stu-avatar" class="avatar-large">S</div>
-                    <h2 id="stu-name" style="font-size: 1.5rem; font-weight: 900; color: var(--text-heading);">Student Name</h2>
-                    <p id="stu-course" style="font-size: 0.85rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">Course Enrolled</p>
-                    <p>Reg Date: <span id="stu-date"></span></p>
+            <!-- VIEW: STUDENT PROFILE (ISOLATED HOME FOR STUDENTS) -->
+            <div id="view-student-dash" class="view-section">
+                <div class="profile-header p-5 rounded-[24px] mb-4 shadow-lg text-center relative overflow-hidden" style="background: linear-gradient(135deg, var(--primary-dark), var(--primary));">
+                    <div id="stu-avatar" class="avatar-large mx-auto relative z-10">S</div>
+                    <h2 id="stu-name" class="relative z-10" style="font-size: 1.5rem; font-weight: 900; color: white;">Student Name</h2>
+                    <p id="stu-course" class="relative z-10" style="font-size: 0.85rem; font-weight: 800; color: rgba(255,255,255,0.8); margin-bottom: 8px;">Course Enrolled</p>
+                    <p class="relative z-10" style="font-size: 0.65rem; font-weight: 800; color: white; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); display: inline-block; padding: 6px 14px; border-radius: 14px; margin-top: 8px;">Reg Date: <span id="stu-date" style="color: white; font-weight: 900; margin-left: 4px;"></span></p>
                 </div>
 
-                <div class="stat-grid">
+                <div class="stat-grid mb-6">
                     <div id="stu-due-card" class="stat-box expense" style="text-align: center;">
                         <p>Pending Dues</p>
                         <h2 id="stu-due-amount">₹0</h2>
                         <p style="font-size: 0.65rem; color: var(--text-muted); text-transform: none; margin-top: 8px;">Please contact the admin desk to clear dues.</p>
                     </div>
                 </div>
+
+                <!-- STUDENT QUICK ACTIONS GRID -->
+                <p class="section-heading mt-2">Student Portal</p>
+                <div class="quick-actions" style="grid-template-columns: repeat(3, 1fr);">
+                    <button onclick="switchTab('stu-materials')" class="action-btn"><div class="icon-circle" style="color: var(--primary); background: #eef2ff;"><i class="fa-solid fa-book-open"></i></div><span>Materials</span></button>
+                    <button onclick="switchTab('stu-certs')" class="action-btn"><div class="icon-circle" style="color: var(--success); background: #f0fdfa;"><i class="fa-solid fa-award"></i></div><span>Certificates</span></button>
+                    <button onclick="switchTab('stu-notices')" class="action-btn"><div class="icon-circle" style="color: var(--warning); background: #fffbeb;"><i class="fa-solid fa-bullhorn"></i></div><span>Alerts</span></button>
+                </div>
             </div>
 
-            <!-- VIEW: STUDENT MATERIALS (Tab 2) -->
-            <div id="view-student-materials" class="view-section">
-                <div class="flex items-center mb-6 pl-2">
+            <!-- NEW STUDENT DEDICATED VIEWS -->
+            <div id="view-stu-materials" class="view-section">
+                <div class="flex items-center mb-6 pb-2 border-b border-slate-200">
                     <i class="fa-solid fa-book-open text-2xl text-indigo-500 mr-3"></i>
-                    <h2 style="font-size: 1.25rem; font-weight: 900; color: var(--text-heading);">Study Materials</h2>
+                    <h3 style="font-weight: 900; font-size: 1.2rem; color: var(--text-heading);">Study Materials</h3>
                 </div>
-                <div id="stu-materials" class="space-y-3">
-                    <!-- Populated via JS -->
-                </div>
+                <div id="stu-materials-list" class="space-y-3"></div>
             </div>
 
-            <!-- VIEW: STUDENT CERTIFICATES (Tab 3) -->
-            <div id="view-student-certs" class="view-section">
-                <div class="flex items-center mb-6 pl-2">
+            <div id="view-stu-certs" class="view-section">
+                <div class="flex items-center mb-6 pb-2 border-b border-slate-200">
                     <i class="fa-solid fa-award text-2xl text-emerald-500 mr-3"></i>
-                    <h2 style="font-size: 1.25rem; font-weight: 900; color: var(--text-heading);">My Certificates</h2>
+                    <h3 style="font-weight: 900; font-size: 1.2rem; color: var(--text-heading);">My Certificates</h3>
                 </div>
-                <div id="stu-certificates" class="space-y-3">
-                    <!-- Populated via JS -->
-                </div>
+                <div id="stu-certs-list" class="space-y-3"></div>
             </div>
 
-            <!-- VIEW: STUDENT NOTICES (Tab 4) -->
-            <div id="view-student-notices" class="view-section">
-                <div class="flex items-center mb-6 pl-2">
-                    <i class="fa-solid fa-bullhorn text-2xl text-rose-500 mr-3"></i>
-                    <h2 style="font-size: 1.25rem; font-weight: 900; color: var(--text-heading);">Notice Board</h2>
+            <div id="view-stu-notices" class="view-section">
+                <div class="flex items-center mb-6 pb-2 border-b border-slate-200">
+                    <i class="fa-solid fa-bullhorn text-2xl text-amber-500 mr-3"></i>
+                    <h3 style="font-weight: 900; font-size: 1.2rem; color: var(--text-heading);">Notice Board</h3>
                 </div>
-                <div id="stu-notices" class="space-y-4">
-                    <!-- Populated via JS -->
-                </div>
+                <div id="stu-notices-list" class="space-y-4"></div>
             </div>
 
-            <!-- OTHER ADMIN VIEWS (Admission, Students, Job, Print, Expense, Analytics) -->
+            <!-- OTHER ADMIN VIEWS -->
             <div id="view-admission" class="view-section"><form id="admission-form" class="premium-card p-5"><div class="input-group"><label>Admission Date</label><input type="date" id="reg-date" class="form-input" required></div><div class="input-group"><label>Full Name</label><input type="text" id="reg-name" class="form-input" required></div><div class="input-group"><label>10-Digit Phone (Student ID)</label><input type="tel" id="reg-phone" class="form-input" pattern="[0-9]{10}" required></div><div class="input-group"><label>Course Selected</label><input type="text" id="reg-course" class="form-input" required></div><div class="grid grid-cols-2 gap-4"><div class="input-group"><label>Total Fee (₹)</label><input type="number" id="reg-fee" class="form-input" style="color: var(--primary); font-weight: 800;" required></div><div class="input-group"><label>Advance (₹)</label><input type="number" id="reg-paid" class="form-input" style="color: var(--success); font-weight: 800;" required></div></div><button type="submit" class="btn-primary mt-2">Register Student</button></form></div>
             <div id="view-students" class="view-section"><div class="input-group sticky top-0 z-10 pb-2 pt-1" style="background: var(--bg-base);"><input type="text" id="student-search" class="form-input shadow-sm" placeholder="Search by name or phone..." onkeyup="renderStudents()"></div><div id="student-list"></div></div>
             <div id="view-job" class="view-section"><form id="job-form" class="premium-card p-5" style="border-top: 4px solid var(--info);"><div class="input-group"><label>Applicant Name</label><input type="text" id="job-name" class="form-input" required></div><div class="input-group"><label>Applied Post</label><input type="text" id="job-post" class="form-input" required></div><div class="input-group"><label>Amount Received (₹)</label><input type="number" id="job-amount" class="form-input" style="color: var(--info); font-weight: 800;" required></div><button type="submit" class="btn-primary mt-2" style="background: var(--info);">Save Job Income</button></form><div id="job-list"></div></div>
@@ -289,26 +286,17 @@
 
         </main>
 
-        <!-- FLOATING BOTTOM NAVIGATION (Dynamic Items) -->
+        <!-- FLOATING BOTTOM NAVIGATION -->
         <div id="bottom-nav" class="bottom-nav-container hidden-initially">
             <div class="bottom-nav">
-                <!-- ADMIN NAV ITEMS -->
-                <button onclick="switchTab('dashboard')" class="nav-btn active admin-nav-item"><i class="fa-solid fa-chart-pie nav-icon"></i><span class="nav-text">Home</span></button>
-                <button onclick="switchTab('students')" class="nav-btn admin-nav-item"><i class="fa-solid fa-users nav-icon"></i><span class="nav-text">Students</span></button>
-                <button onclick="switchTab('analytics')" class="nav-btn admin-nav-item"><i class="fa-solid fa-chart-line nav-icon"></i><span class="nav-text">Analytics</span></button>
-                
-                <!-- STUDENT NAV ITEMS (Hidden Initially) -->
-                <button onclick="switchTab('student-profile')" class="nav-btn student-nav-item hidden-initially"><i class="fa-solid fa-user nav-icon"></i><span class="nav-text">Profile</span></button>
-                <button onclick="switchTab('student-materials')" class="nav-btn student-nav-item hidden-initially"><i class="fa-solid fa-book-open nav-icon"></i><span class="nav-text">Materials</span></button>
-                <button onclick="switchTab('student-certs')" class="nav-btn student-nav-item hidden-initially"><i class="fa-solid fa-award nav-icon"></i><span class="nav-text">Certs</span></button>
-                <button onclick="switchTab('student-notices')" class="nav-btn student-nav-item hidden-initially"><i class="fa-solid fa-bullhorn nav-icon"></i><span class="nav-text">Notices</span></button>
-
-                <!-- SHARED NAV ITEM -->
+                <button onclick="switchTab('dashboard')" class="nav-btn active" id="nav-home-btn"><i class="fa-solid fa-house nav-icon"></i><span class="nav-text">Home</span></button>
+                <button onclick="switchTab('students')" class="nav-btn" id="nav-students-btn"><i class="fa-solid fa-users nav-icon"></i><span class="nav-text">Students</span></button>
+                <button onclick="switchTab('analytics')" class="nav-btn" id="nav-analytics-btn"><i class="fa-solid fa-chart-line nav-icon"></i><span class="nav-text">Analytics</span></button>
                 <button onclick="openSettingsModal()" class="nav-btn"><i class="fa-solid fa-gear nav-icon"></i><span class="nav-text">Settings</span></button>
             </div>
         </div>
 
-        <!-- MODAL: DETAILED STUDENT PROFILE (For Admin View) -->
+        <!-- MODAL: DETAILED STUDENT PROFILE WITH PAYMENT HISTORY -->
         <div id="modal-student-detail" class="modal-overlay">
             <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
                 <div class="modal-pull-bar"></div>
@@ -385,7 +373,7 @@
             <div class="modal-content">
                 <div class="modal-pull-bar"></div>
                 <div class="flex justify-between items-center mb-4">
-                    <h3 id="notif-modal-title" style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);"><i class="fa-solid fa-bell text-rose-500 mr-2"></i> Pending Dues</h3>
+                    <h3 id="notif-modal-title" style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);"><i class="fa-solid fa-bell text-rose-500 mr-2"></i> Action Required</h3>
                     <button onclick="closeNotificationModal()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button>
                 </div>
                 <div id="notif-list-details" class="custom-scrollbar" style="max-height: 60vh; overflow-y: auto;"></div>
