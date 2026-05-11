@@ -12,11 +12,24 @@
     
     <!-- Link to your Premium CSS -->
     <link rel="stylesheet" href="style.css">
-</head>
-<body>
 
-    <!-- GLOBAL SPLASH SCREEN -->
-    <div id="global-loader">
+    <!-- Inline override to guarantee pull-to-refresh is disabled -->
+    <style>
+        html, body {
+            overscroll-behavior-y: none !important;
+            touch-action: pan-y !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased h-screen w-screen overflow-hidden overscroll-none touch-pan-y relative">
+
+    <!-- 1. GLOBAL WATERMARK (Behind everything) -->
+    <div class="fixed inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden">
+        <img src="excellent institute logo.jpeg" alt="Watermark" class="w-96 h-96 object-contain opacity-[0.03] grayscale">
+    </div>
+
+    <!-- 2. GLOBAL SPLASH SCREEN -->
+    <div id="global-loader" class="relative z-[9999]">
         <div class="logo-container">
             <img src="excellent institute logo.jpeg" class="circular-logo" onerror="this.src='https://ui-avatars.com/api/?name=EI&background=4f46e5&color=fff'">
         </div>
@@ -25,8 +38,8 @@
         <div class="spinner"></div>
     </div>
 
-    <!-- MAIN APP CONTAINER -->
-    <div id="app-container" class="hidden-initially">
+    <!-- 3. MAIN APP CONTAINER -->
+    <div id="app-container" class="hidden-initially relative z-10">
 
         <!-- Admin Preview Mode Banner -->
         <div id="admin-view-banner" class="hidden-initially" style="background: var(--danger); color: white; text-align: center; font-size: 0.75rem; font-weight: 800; padding: 8px; z-index: 60; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(244,63,94,0.3);">
@@ -50,7 +63,6 @@
                         <div class="input-group mb-4">
                             <label><i class="fa-solid fa-user text-indigo-400 mr-1"></i> User ID</label>
                             <input type="text" id="userid" class="form-input" placeholder="Phone No. or 'excellent'" required>
-                            <!-- User ID Hint -->
                             <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; padding-left: 6px; line-height: 1.5;">
                                 <strong>Admin/Staff:</strong> 'excellent'<br>
                                 <strong>Student:</strong> 10-Digit Registered Phone No.
@@ -59,11 +71,9 @@
                         <div class="input-group mb-4">
                             <label><i class="fa-solid fa-lock text-indigo-400 mr-1"></i> Password</label>
                             <input type="password" id="password" class="form-input" placeholder="Enter password..." required>
-                            <!-- Password Hint -->
                             <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; padding-left: 6px; line-height: 1.5;">
                                 <strong>Staff Pass:</strong> 9658<br>
-                                <strong>Student Pass:</strong> EI + First Name + Reg. Year<br>
-                                <span style="opacity: 0.7;">(e.g., if Rahul registered in 2026 ➔ <strong>EIRahul2026</strong>)</span>
+                                <strong>Student Pass:</strong> EI + First Name + Reg. Year
                             </div>
                         </div>
                         
@@ -78,7 +88,7 @@
                     </form>
                 </div>
 
-                <!-- PIN Login Panel (Shows if Remember Me & PIN is active) -->
+                <!-- PIN Login Panel -->
                 <div id="panel-pin-login" class="glass-panel hidden-initially" style="padding: 32px 24px; border-radius: 32px; text-align: center;">
                     <div class="logo-container" style="width: 80px; height: 80px; margin-bottom: 16px;">
                         <img src="excellent institute logo.jpeg" class="circular-logo" onerror="this.src='https://ui-avatars.com/api/?name=EI&background=4f46e5&color=fff'">
@@ -120,14 +130,8 @@
             <!-- VIEW: DASHBOARD (Admin/Staff) -->
             <div id="view-dashboard" class="view-section">
                 <div class="stat-grid two-col">
-                    <div class="stat-box income">
-                        <p>Total In</p>
-                        <h2 id="dash-income">₹0</h2>
-                    </div>
-                    <div class="stat-box expense">
-                        <p>Total Out</p>
-                        <h2 id="dash-expense">₹0</h2>
-                    </div>
+                    <div class="stat-box income"><p>Total In</p><h2 id="dash-income">₹0</h2></div>
+                    <div class="stat-box expense"><p>Total Out</p><h2 id="dash-expense">₹0</h2></div>
                 </div>
                 <div class="stat-grid">
                     <div class="stat-box balance" style="background: linear-gradient(135deg, var(--bg-surface), #f1f5f9);">
@@ -158,7 +162,7 @@
                 </div>
             </div>
 
-            <!-- VIEW: STUDENT PROFILE (Isolated) -->
+            <!-- VIEW: STUDENT PROFILE (Isolated Student UI) -->
             <div id="view-student-dash" class="view-section">
                 <div class="premium-card profile-header" style="padding: 30px 20px;">
                     <div id="stu-avatar" class="avatar-large">S</div>
@@ -177,9 +181,7 @@
 
                 <p class="section-heading mt-6">Notice Board</p>
                 <div class="premium-card p-4">
-                    <div id="stu-notices" class="space-y-4">
-                        <!-- Populated via JS -->
-                    </div>
+                    <div id="stu-notices" class="space-y-4"></div>
                 </div>
             </div>
 
@@ -198,7 +200,7 @@
                 </form>
             </div>
 
-            <!-- VIEW: STUDENTS LIST -->
+            <!-- VIEW: STUDENTS LIST (Database) -->
             <div id="view-students" class="view-section">
                 <div class="input-group sticky top-0 z-10 pb-2 pt-1" style="background: var(--bg-base);">
                     <input type="text" id="student-search" class="form-input shadow-sm" placeholder="Search by name or phone..." onkeyup="renderStudents()">
@@ -277,9 +279,60 @@
             </div>
         </div>
 
+        <!-- MODAL: DETAILED STUDENT PROFILE (For Admin/Staff view) -->
+        <div id="modal-student-detail" class="modal-overlay">
+            <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+                <div class="modal-pull-bar"></div>
+                
+                <div class="flex justify-between items-start mb-6 border-b border-slate-200 pb-4">
+                    <div class="flex items-center gap-4">
+                        <div id="detail-avatar" class="avatar-large" style="width: 60px; height: 60px; font-size: 24px; margin: 0; box-shadow: none;">S</div>
+                        <div>
+                            <h3 id="detail-name" style="font-size: 1.25rem; font-weight: 900; color: var(--text-heading);">Student Name</h3>
+                            <p id="detail-id" style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">ID: STU12345</p>
+                        </div>
+                    </div>
+                    <button onclick="closeStudentDetailModal()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Phone / Contact</p>
+                            <p id="detail-phone" style="font-size: 0.9rem; font-weight: 700; color: var(--text-heading);">9876543210</p>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p style="font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Reg Date</p>
+                            <p id="detail-date" style="font-size: 0.9rem; font-weight: 700; color: var(--text-heading);">2026-05-11</p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                        <p style="font-size: 0.65rem; font-weight: 800; color: var(--primary); text-transform: uppercase;">Course Enrolled</p>
+                        <p id="detail-course" style="font-size: 1rem; font-weight: 800; color: var(--primary-dark);">PGDCA</p>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 text-center mt-2">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                            <p style="font-size: 0.6rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Total Fee</p>
+                            <h4 id="detail-total" style="font-size: 1.1rem; font-weight: 900; color: var(--primary);">₹0</h4>
+                        </div>
+                        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                            <p style="font-size: 0.6rem; font-weight: 800; color: var(--success); text-transform: uppercase;">Paid</p>
+                            <h4 id="detail-paid" style="font-size: 1.1rem; font-weight: 900; color: var(--success);">₹0</h4>
+                        </div>
+                        <div class="p-3 bg-rose-50 rounded-xl border border-rose-200">
+                            <p style="font-size: 0.6rem; font-weight: 800; color: var(--danger); text-transform: uppercase;">Due</p>
+                            <h4 id="detail-due" style="font-size: 1.1rem; font-weight: 900; color: var(--danger);">₹0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL: NOTIFICATIONS -->
         <div id="modal-notifications" class="modal-overlay">
-            <div class="modal-content" id="notif-modal-content">
+            <div class="modal-content">
                 <div class="modal-pull-bar"></div>
                 <div class="flex justify-between items-center mb-4">
                     <h3 style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);"><i class="fa-solid fa-bell text-rose-500 mr-2"></i> Pending Dues</h3>
@@ -293,7 +346,7 @@
 
         <!-- MODAL: SETTINGS -->
         <div id="modal-settings" class="modal-overlay">
-            <div class="modal-content" id="settings-modal-content">
+            <div class="modal-content">
                 <div class="modal-pull-bar"></div>
                 <div class="flex justify-between items-center mb-6">
                     <h3 style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);">App Settings</h3>
