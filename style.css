@@ -7,7 +7,7 @@
 
 /* --- 1. VIBRANT, INDEPENDENT DESIGN TOKENS --- */
 :root {
-    color-scheme: light; /* Locks theme to prevent system inversion bugs */
+    color-scheme: light; 
 
     /* Ultra-Vibrant Brand Colors */
     --primary: #4f46e5;
@@ -98,7 +98,6 @@ html, body {
     position: relative; overflow: hidden;
 }
 
-/* Linear, Continuous Sweep. Never stops. Never hangs. */
 .glass-panel::after {
     content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
     background: linear-gradient(to right, transparent, rgba(255,255,255,0.7), transparent);
@@ -111,7 +110,6 @@ html, body {
     100% { transform: translateX(350%) skewX(-25deg); } 
 }
 
-/* Premium Standard Cards */
 .premium-card { 
     background: rgba(255, 255, 255, 0.95); 
     border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.06), inset 0 2px 0 rgba(255,255,255,1); 
@@ -131,7 +129,20 @@ html, body {
 .top-app-bar h2 { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.02em; color: var(--primary-dark); }
 .top-app-bar p { font-size: 0.65rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.15em; }
 
-/* --- 8. DASHBOARD LIVE STAT BOXES (With Fintech Badges) --- */
+/* FIXED TOP APP BAR BUTTONS (Eye, Bell) */
+#btn-admin-view, .notification-icon { 
+    width: 44px !important; height: 44px !important; 
+    border-radius: 50% !important; 
+    background: #f1f5f9 !important; /* Solid Slate for contrast */
+    border: 1px solid rgba(0,0,0,0.05) !important; 
+    color: var(--text-heading) !important; /* Dark Icon */
+    display: flex; align-items: center; justify-content: center; 
+    font-size: 1.2rem; cursor: pointer; transition: all 0.2s var(--spring);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05) !important; 
+}
+#btn-admin-view:active, .notification-icon:active { transform: scale(0.85); background: #e2e8f0 !important; box-shadow: none !important; }
+
+/* --- 8. DASHBOARD LIVE STAT BOXES --- */
 .stat-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px; }
 .stat-grid.two-col { grid-template-columns: 1fr 1fr; }
 
@@ -146,7 +157,7 @@ html, body {
 .stat-box.income::before { background: var(--success); }
 .stat-box.expense::before { background: var(--danger); }
 
-/* Premium Fintech Badges for Stat Labels */
+/* Premium Fintech Badges */
 .stat-box > p:first-of-type { 
     font-size: 0.65rem; text-transform: uppercase; font-weight: 900; 
     margin-bottom: 12px; letter-spacing: 0.05em; 
@@ -155,33 +166,20 @@ html, body {
 }
 .stat-box.income > p:first-of-type { color: var(--success); background: var(--success-bg); border: 1px solid rgba(16, 185, 129, 0.2); }
 .stat-box.income > p:first-of-type::before { content: '\f062'; font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 6px; font-size: 0.8rem; }
-
 .stat-box.expense > p:first-of-type { color: var(--danger); background: var(--danger-bg); border: 1px solid rgba(244, 63, 94, 0.2); }
 .stat-box.expense > p:first-of-type::before { content: '\f063'; font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 6px; font-size: 0.8rem; }
-
 .stat-box.balance > p:first-of-type { color: white !important; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(4px); }
 .stat-box.balance > p:first-of-type::before { content: '\f51e'; font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 6px; font-size: 0.8rem; }
 
-/* Floating Pulse for basic stats */
 .stat-box.income { animation: floatBox 6s ease-in-out infinite; }
 .stat-box.expense { animation: floatBox 6s ease-in-out infinite reverse; }
 @keyframes floatBox { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
-/* Dynamic Fluid Numbers */
-.stat-box h2 { 
-    font-size: clamp(1.4rem, 6.5vw, 2rem); font-weight: 900; 
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.04em; 
-    position: relative; z-index: 10;
-}
+.stat-box h2 { font-size: clamp(1.4rem, 6.5vw, 2rem); font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.04em; position: relative; z-index: 10; }
 .stat-box.income h2 { color: var(--success); }
 .stat-box.expense h2 { color: var(--danger); }
 
-/* NET BALANCE: Force contrast to prevent invisible text */
-.stat-box.balance { 
-    background: linear-gradient(135deg, var(--primary-dark), var(--primary)) !important; 
-    border: none; overflow: hidden; position: relative; z-index: 1;
-    box-shadow: 0 15px 35px var(--primary-glow) !important;
-}
+.stat-box.balance { background: linear-gradient(135deg, var(--primary-dark), var(--primary)) !important; border: none; overflow: hidden; position: relative; z-index: 1; box-shadow: 0 15px 35px var(--primary-glow) !important; }
 .stat-box.balance h2 { color: white !important; text-shadow: 0 4px 15px rgba(0,0,0,0.3) !important; }
 
 /* --- 9. LIQUID WATER WAVE ANIMATIONS --- */
@@ -193,76 +191,62 @@ html, body {
     box-shadow: 0 15px 35px var(--primary-glow) !important;
 }
 
-/* Back Wave (Darker) */
 .stat-box.balance::before, .profile-header::before {
-    content: ''; position: absolute; width: 250%; height: 250%;
-    top: 35%; left: -75%; background: rgba(255, 255, 255, 0.08); border-radius: 40%;
-    animation: spinWave 10s infinite linear; z-index: -1; pointer-events: none;
+    content: ''; position: absolute; width: 250%; height: 250%; top: 35%; left: -75%; background: rgba(255, 255, 255, 0.08); border-radius: 40%; animation: spinWave 10s infinite linear; z-index: -1; pointer-events: none;
 }
-
-/* Front Wave (Lighter) */
 .stat-box.balance::after, .profile-header::after {
-    content: ''; position: absolute; width: 250%; height: 250%;
-    top: 40%; left: -75%; background: rgba(255, 255, 255, 0.12); border-radius: 45%;
-    animation: spinWave 15s infinite linear; z-index: -1; pointer-events: none;
+    content: ''; position: absolute; width: 250%; height: 250%; top: 40%; left: -75%; background: rgba(255, 255, 255, 0.12); border-radius: 45%; animation: spinWave 15s infinite linear; z-index: -1; pointer-events: none;
 }
 
-/* Student Profile Text Fixes */
 .profile-header h2, .profile-header p:not(:last-child) { color: white !important; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-
-/* The Glass "Reg Date" Pill */
-.profile-header p:last-child {
-    background: rgba(255, 255, 255, 0.15) !important;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
-    display: inline-block; padding: 6px 14px !important;
-    border-radius: 14px !important; box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    text-shadow: none !important; margin-top: 8px;
-}
-.profile-header p:last-child span {
-    color: #ffffff !important; background: transparent !important;
-    font-weight: 900; margin-left: 4px;
-}
+.profile-header p:last-child { background: rgba(255, 255, 255, 0.15) !important; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3) !important; color: rgba(255, 255, 255, 0.9) !important; display: inline-block; padding: 6px 14px !important; border-radius: 14px !important; box-shadow: 0 8px 20px rgba(0,0,0,0.15); text-shadow: none !important; margin-top: 8px; }
+.profile-header p:last-child span { color: #ffffff !important; background: transparent !important; font-weight: 900; margin-left: 4px; }
 
 
-/* --- 10. ORGANIC "WINDY GRASS" MODAL BACKGROUND --- */
-/* Specifically for the Admin's view of Student Details */
+/* --- 10. FIXED: ORGANIC "WINDY GRASS" MODAL BACKGROUND --- */
+/* Restructured to ensure blobs are physically inside the modal and cannot be clipped */
 #modal-student-detail .modal-content {
     position: relative;
     background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
+    backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    overflow: hidden; /* Contains the wind effect within the modal */
     z-index: 1;
 }
 
-/* Grass Blade 1 */
+/* Grass Blob 1 (Emerald) */
 #modal-student-detail .modal-content::before {
-    content: '';
-    position: fixed; /* Attaches beautifully to the bottom even while scrolling */
-    bottom: -15%; left: -30%; right: -30%; height: 65vh;
-    background: radial-gradient(ellipse at bottom center, rgba(16, 185, 129, 0.18) 0%, rgba(99, 102, 241, 0.08) 50%, transparent 100%);
-    transform-origin: bottom center;
-    animation: windSway 6s ease-in-out infinite alternate;
-    z-index: -1; pointer-events: none;
+    content: ''; position: absolute;
+    bottom: -100px; right: -50px;
+    width: 350px; height: 350px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; /* Organic shape */
+    animation: swayWindPrimary 8s ease-in-out infinite alternate;
+    z-index: -1; pointer-events: none; transform-origin: bottom center;
 }
 
-/* Grass Blade 2 */
+/* Grass Blob 2 (Indigo) */
 #modal-student-detail .modal-content::after {
-    content: '';
-    position: fixed;
-    bottom: -10%; left: -20%; right: -20%; height: 50vh;
-    background: radial-gradient(ellipse at bottom center, rgba(14, 165, 233, 0.15) 0%, rgba(16, 185, 129, 0.05) 50%, transparent 100%);
-    transform-origin: bottom center;
-    animation: windSway 8s ease-in-out infinite alternate-reverse;
-    z-index: -1; pointer-events: none;
+    content: ''; position: absolute;
+    bottom: -50px; left: -100px;
+    width: 280px; height: 280px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.12) 0%, transparent 70%);
+    border-radius: 60% 40% 30% 70% / 50% 40% 60% 50%; /* Organic shape */
+    animation: swayWindSecondary 6s ease-in-out infinite alternate-reverse;
+    z-index: -1; pointer-events: none; transform-origin: bottom center;
 }
 
-@keyframes windSway {
-    0% { transform: skewX(-12deg) rotate(-4deg); }
-    50% { transform: skewX(2deg) rotate(1deg); }
-    100% { transform: skewX(12deg) rotate(4deg); }
+/* The physics of grass blowing in the wind */
+@keyframes swayWindPrimary {
+    0% { transform: rotate(-5deg) scale(1) skewX(10deg); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
+    100% { transform: rotate(15deg) scale(1.1) skewX(-10deg); border-radius: 60% 40% 50% 50% / 50% 60% 40% 40%; }
 }
+@keyframes swayWindSecondary {
+    0% { transform: rotate(10deg) scale(1) skewX(-8deg); border-radius: 60% 40% 30% 70% / 50% 40% 60% 50%; }
+    100% { transform: rotate(-10deg) scale(1.15) skewX(8deg); border-radius: 40% 60% 50% 50% / 40% 50% 40% 60%; }
+}
+
+/* Ensure content over grass is readable */
+#modal-student-detail .modal-content > div { position: relative; z-index: 2; }
 
 
 /* --- 11. LOGOS & AVATARS --- */
@@ -282,7 +266,6 @@ html, body {
 
 .section-heading { font-size: 0.8rem; font-weight: 900; color: var(--text-heading); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; padding-left: 6px; }
 
-/* Quick Actions */
 .quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
 .action-btn { display: flex; flex-direction: column; align-items: center; background: none; border: none; cursor: pointer; transition: transform 0.2s var(--spring); }
 .icon-circle { width: 65px; height: 65px; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 8px; background: white; box-shadow: 0 8px 20px rgba(0,0,0,0.06); transition: all 0.2s var(--spring); }
@@ -290,11 +273,8 @@ html, body {
 .action-btn:active .icon-circle { box-shadow: inset 0 4px 10px rgba(0,0,0,0.1); background: #f8fafc; }
 .action-btn span { font-size: 0.75rem; font-weight: 800; color: var(--text-heading); }
 
-/* SMALL ACTION BUTTONS */
-button[onclick^="close"], #btn-admin-view, .notification-icon { cursor: pointer; transition: all 0.2s var(--spring); position: relative; overflow: hidden; }
-#btn-admin-view, .notification-icon { width: 46px !important; height: 46px !important; border-radius: 50% !important; background: white !important; border: 1px solid #f1f5f9 !important; color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
-#btn-admin-view:active, .notification-icon:active { transform: scale(0.85); background: #f1f5f9 !important; box-shadow: none; }
-.modal-content button[onclick^="close"] { width: 44px !important; height: 44px !important; border-radius: 50% !important; background: #f1f5f9 !important; color: #64748b !important; border: none !important; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+/* Modal Close Buttons */
+.modal-content button[onclick^="close"] { width: 44px !important; height: 44px !important; border-radius: 50% !important; background: #f1f5f9 !important; color: #64748b !important; border: none !important; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.2s var(--spring); }
 .modal-content button[onclick^="close"]:active { transform: scale(0.85); background: #e2e8f0 !important; }
 
 /* --- 14. LIST ITEMS --- */
@@ -316,7 +296,7 @@ button[onclick^="close"], #btn-admin-view, .notification-icon { cursor: pointer;
 .bottom-nav-container { position: absolute; bottom: 24px; left: 24px; right: 24px; z-index: 50; }
 .bottom-nav { 
     background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
-    border: 1px solid rgba(255, 255, 255, 1); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15); 
+    border: 1px solid rgba(255, 255, 255, 1); box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.15); 
     border-radius: 40px; display: flex; justify-content: space-around; padding: 10px 12px; 
 }
 .nav-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 65px; height: 60px; background: transparent; border: none; border-radius: 24px; cursor: pointer; position: relative; transition: all 0.4s var(--spring); }
@@ -327,18 +307,20 @@ button[onclick^="close"], #btn-admin-view, .notification-icon { cursor: pointer;
 .nav-btn.active .nav-icon { color: var(--primary); transform: translateY(-4px) scale(1.1); }
 .nav-btn.active .nav-text { color: var(--primary); transform: translateY(2px); }
 
-/* --- 16. NOTIFICATIONS --- */
+/* --- 16. NOTIFICATIONS & MODALS --- */
 .badge-dot { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: var(--danger); border-radius: 50%; border: 3px solid white; animation: pulseAlert 2s infinite; }
 @keyframes pulseAlert { 0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.6); } 70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); } }
 
-/* --- 17. BOTTOM SHEET MODALS --- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s var(--smooth); }
 .modal-overlay.active { opacity: 1; pointer-events: auto; }
-.modal-content { background: var(--bg-base); width: 100%; max-width: 480px; border-radius: 40px 40px 0 0; padding: 24px 24px max(30px, env(safe-area-inset-bottom)) 24px; transform: translateY(100%); transition: transform 0.5s var(--spring); box-shadow: 0 -20px 60px rgba(0,0,0,0.2); border-top: 1px solid white; }
+.modal-content { width: 100%; max-width: 480px; border-radius: 40px 40px 0 0; padding: 24px 24px max(30px, env(safe-area-inset-bottom)) 24px; transform: translateY(100%); transition: transform 0.5s var(--spring); box-shadow: 0 -20px 60px rgba(0,0,0,0.2); border-top: 1px solid white; }
 .modal-overlay.active .modal-content { transform: translateY(0); }
-.modal-pull-bar { width: 50px; height: 6px; background: #cbd5e1; border-radius: 10px; margin: 0 auto 24px auto; }
+.modal-pull-bar { width: 50px; height: 6px; background: rgba(0,0,0,0.1); border-radius: 10px; margin: 0 auto 24px auto; }
 
-/* --- 18. SPLASH ORBIT LOADER --- */
+/* Default Background for non-glass modals */
+.modal-content:not(#modal-student-detail .modal-content) { background: var(--bg-base); }
+
+/* --- 17. SPLASH ORBIT LOADER --- */
 #global-loader { position: fixed; inset: 0; background: var(--bg-base); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.6s ease, visibility 0.6s ease; }
 #global-loader.hide { opacity: 0; visibility: hidden; }
 .splash-logo-wrapper { position: relative; width: 140px; height: 140px; margin: 0 auto 16px auto; display: flex; align-items: center; justify-content: center; }
