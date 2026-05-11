@@ -1,6 +1,6 @@
 /* ==========================================================================
-   EXCELLENT INSTITUTE - ULTRA PREMIUM LIQUID UI
-   Design Language: Continuous Motion, Liquid Waves, Vibrant Glass
+   EXCELLENT INSTITUTE - ULTRA PREMIUM LIQUID & ORGANIC UI
+   Design Language: Continuous Motion, Liquid Waves, Windy Grass, Vibrant Glass
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
@@ -151,7 +151,7 @@ html, body {
     font-size: 0.65rem; text-transform: uppercase; font-weight: 900; 
     margin-bottom: 12px; letter-spacing: 0.05em; 
     display: inline-flex; align-items: center;
-    padding: 6px 12px; border-radius: 12px;
+    padding: 6px 12px; border-radius: 12px; z-index: 10; position: relative;
 }
 .stat-box.income > p:first-of-type { color: var(--success); background: var(--success-bg); border: 1px solid rgba(16, 185, 129, 0.2); }
 .stat-box.income > p:first-of-type::before { content: '\f062'; font-family: "Font Awesome 6 Free"; font-weight: 900; margin-right: 6px; font-size: 0.8rem; }
@@ -171,6 +171,7 @@ html, body {
 .stat-box h2 { 
     font-size: clamp(1.4rem, 6.5vw, 2rem); font-weight: 900; 
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.04em; 
+    position: relative; z-index: 10;
 }
 .stat-box.income h2 { color: var(--success); }
 .stat-box.expense h2 { color: var(--danger); }
@@ -225,18 +226,57 @@ html, body {
 }
 
 
-/* --- 10. LOGOS & AVATARS --- */
+/* --- 10. ORGANIC "WINDY GRASS" MODAL BACKGROUND --- */
+/* Specifically for the Admin's view of Student Details */
+#modal-student-detail .modal-content {
+    position: relative;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    z-index: 1;
+}
+
+/* Grass Blade 1 */
+#modal-student-detail .modal-content::before {
+    content: '';
+    position: fixed; /* Attaches beautifully to the bottom even while scrolling */
+    bottom: -15%; left: -30%; right: -30%; height: 65vh;
+    background: radial-gradient(ellipse at bottom center, rgba(16, 185, 129, 0.18) 0%, rgba(99, 102, 241, 0.08) 50%, transparent 100%);
+    transform-origin: bottom center;
+    animation: windSway 6s ease-in-out infinite alternate;
+    z-index: -1; pointer-events: none;
+}
+
+/* Grass Blade 2 */
+#modal-student-detail .modal-content::after {
+    content: '';
+    position: fixed;
+    bottom: -10%; left: -20%; right: -20%; height: 50vh;
+    background: radial-gradient(ellipse at bottom center, rgba(14, 165, 233, 0.15) 0%, rgba(16, 185, 129, 0.05) 50%, transparent 100%);
+    transform-origin: bottom center;
+    animation: windSway 8s ease-in-out infinite alternate-reverse;
+    z-index: -1; pointer-events: none;
+}
+
+@keyframes windSway {
+    0% { transform: skewX(-12deg) rotate(-4deg); }
+    50% { transform: skewX(2deg) rotate(1deg); }
+    100% { transform: skewX(12deg) rotate(4deg); }
+}
+
+
+/* --- 11. LOGOS & AVATARS --- */
 .logo-container { width: 110px; height: 110px; margin: 0 auto 20px auto; border-radius: 50%; padding: 4px; background: var(--primary); box-shadow: 0 15px 35px var(--primary-glow); z-index: 10; }
 .circular-logo { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid white; background: white; z-index: 10; position: relative; }
 .avatar-large { width: 80px; height: 80px; background: white; color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; margin: 0 auto 12px auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 2; position: relative; }
 
-/* --- 11. FORMS & INPUTS --- */
+/* --- 12. FORMS & INPUTS --- */
 .input-group { margin-bottom: 1.2rem; }
 .input-group label { display: flex; align-items: center; font-size: 0.7rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; padding-left: 6px; }
 .form-input { width: 100%; border-radius: 20px; border: 2px solid transparent; padding: 1.15rem 1.25rem; font-size: 1rem; font-weight: 700; background-color: #f1f5f9; color: var(--text-heading); outline: none; transition: all 0.3s var(--smooth); box-shadow: inset 0 2px 6px rgba(0,0,0,0.03); }
 .form-input:focus { border-color: var(--primary); background-color: #ffffff; box-shadow: 0 0 0 5px var(--primary-glow), inset 0 2px 4px rgba(0,0,0,0.01); transform: translateY(-2px); }
 
-/* --- 12. VIBRANT BUTTONS --- */
+/* --- 13. VIBRANT BUTTONS --- */
 .btn-primary { width: 100%; background: var(--primary); color: white; padding: 1.25rem; border: none; border-radius: 20px; font-size: 1.05rem; font-weight: 900; cursor: pointer; box-shadow: 0 12px 25px var(--primary-glow), inset 0 2px 4px rgba(255,255,255,0.2); transition: all 0.2s var(--spring); }
 .btn-primary:active { transform: scale(0.94) translateY(2px); box-shadow: 0 5px 15px var(--primary-glow); }
 
@@ -257,7 +297,7 @@ button[onclick^="close"], #btn-admin-view, .notification-icon { cursor: pointer;
 .modal-content button[onclick^="close"] { width: 44px !important; height: 44px !important; border-radius: 50% !important; background: #f1f5f9 !important; color: #64748b !important; border: none !important; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
 .modal-content button[onclick^="close"]:active { transform: scale(0.85); background: #e2e8f0 !important; }
 
-/* --- 13. LIST ITEMS --- */
+/* --- 14. LIST ITEMS --- */
 .list-item { 
     display: flex; justify-content: space-between; align-items: center; padding: 20px; 
     background: rgba(255,255,255,0.9); border: 1px solid white; border-radius: 24px; margin-bottom: 14px; 
@@ -272,7 +312,7 @@ button[onclick^="close"], #btn-admin-view, .notification-icon { cursor: pointer;
 .list-value span { display: block; font-size: 0.65rem; font-weight: 900; color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px; }
 .list-value h3 { font-size: 1.25rem; font-weight: 900; }
 
-/* --- 14. FLOATING BOTTOM NAVIGATION --- */
+/* --- 15. FLOATING BOTTOM NAVIGATION --- */
 .bottom-nav-container { position: absolute; bottom: 24px; left: 24px; right: 24px; z-index: 50; }
 .bottom-nav { 
     background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
@@ -287,18 +327,18 @@ button[onclick^="close"], #btn-admin-view, .notification-icon { cursor: pointer;
 .nav-btn.active .nav-icon { color: var(--primary); transform: translateY(-4px) scale(1.1); }
 .nav-btn.active .nav-text { color: var(--primary); transform: translateY(2px); }
 
-/* --- 15. NOTIFICATIONS --- */
+/* --- 16. NOTIFICATIONS --- */
 .badge-dot { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: var(--danger); border-radius: 50%; border: 3px solid white; animation: pulseAlert 2s infinite; }
 @keyframes pulseAlert { 0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.6); } 70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); } }
 
-/* --- 16. BOTTOM SHEET MODALS --- */
+/* --- 17. BOTTOM SHEET MODALS --- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s var(--smooth); }
 .modal-overlay.active { opacity: 1; pointer-events: auto; }
 .modal-content { background: var(--bg-base); width: 100%; max-width: 480px; border-radius: 40px 40px 0 0; padding: 24px 24px max(30px, env(safe-area-inset-bottom)) 24px; transform: translateY(100%); transition: transform 0.5s var(--spring); box-shadow: 0 -20px 60px rgba(0,0,0,0.2); border-top: 1px solid white; }
 .modal-overlay.active .modal-content { transform: translateY(0); }
 .modal-pull-bar { width: 50px; height: 6px; background: #cbd5e1; border-radius: 10px; margin: 0 auto 24px auto; }
 
-/* --- 17. SPLASH ORBIT LOADER --- */
+/* --- 18. SPLASH ORBIT LOADER --- */
 #global-loader { position: fixed; inset: 0; background: var(--bg-base); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.6s ease, visibility 0.6s ease; }
 #global-loader.hide { opacity: 0; visibility: hidden; }
 .splash-logo-wrapper { position: relative; width: 140px; height: 140px; margin: 0 auto 16px auto; display: flex; align-items: center; justify-content: center; }
