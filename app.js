@@ -22,7 +22,25 @@ let appData = {
 let analyticsChartInstance = null;
 
 // ==========================================================================
-// 1. HELPER FUNCTIONS (Base64 File Encoding & Safe Downloading)
+// 1. SMART PULL-TO-REFRESH KILLER (Allows Normal Scrolling)
+// ==========================================================================
+let touchStartY = 0;
+document.addEventListener('touchstart', e => { touchStartY = e.touches[0].pageY; }, { passive: true });
+
+document.addEventListener('touchmove', function(e) {
+    const y = e.touches[0].pageY;
+    const pullingDown = y > touchStartY;
+    const scrollable = e.target.closest('.content-area, .custom-scrollbar, .modal-scroll-area');
+    
+    if (!scrollable) {
+        e.preventDefault(); // Kills bounce outside scrollable areas
+    } else if (pullingDown && scrollable.scrollTop <= 0) {
+        e.preventDefault(); // Traps the pull-to-refresh at the absolute top of the page
+    }
+}, { passive: false });
+
+// ==========================================================================
+// 2. HELPER FUNCTIONS (File Encoding & Safe Blob Downloading)
 // ==========================================================================
 const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -30,6 +48,19 @@ const fileToBase64 = (file) => new Promise((resolve, reject) => {
     reader.onload = () => resolve(reader.result);
     reader.onerror = error => reject(error);
 });
+
+// Fixes damaged files by properly decoding Base64 strings into physical Blobs
+function base64ToBlob(dataURI) {
+    const splitDataURI = dataURI.split(',');
+    const byteString = atob(splitDataURI[1]);
+    const mimeString = splitDataURI[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeString });
+}
 
 // SAFELY DOWNLOADS FILES WITHOUT CRASHING MOBILE BROWSERS
 function downloadMediaFile(type, id) {
@@ -43,38 +74,33 @@ function downloadMediaFile(type, id) {
                 return alert("File data corrupted or missing.");
             }
 
-            // Converts the giant Base64 string into a safe, lightweight Blob URL
-            fetch(item.file)
-                .then(res => res.blob())
-                .then(blob => {
-                    const blobUrl = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = blobUrl;
-                    a.download = item.filename || 'download';
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    // Cleanup memory after download starts
-                    setTimeout(() => {
-                        window.URL.revokeObjectURL(blobUrl);
-                        document.body.removeChild(a);
-                        hideLoader();
-                    }, 1000);
-                })
-                .catch(err => {
-                    hideLoader();
-                    alert("Error downloading file. Connection interrupted.");
-                });
+            // Convert to clean physical Blob safely
+            const blob = base64ToBlob(item.file);
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = item.filename || 'download';
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup memory after download starts
+            setTimeout(() => {
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+                hideLoader();
+            }, 1000);
+
         } catch (error) {
             hideLoader();
-            alert("Download failed.");
+            alert("Download failed. File format might be unsupported.");
         }
     }, 100);
 }
 
 // ==========================================================================
-// 2. BOOT SEQUENCE & SPLASH SCREEN
+// 3. BOOT SEQUENCE & SPLASH SCREEN
 // ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
     const regDateEl = document.getElementById('reg-date');
@@ -119,7 +145,7 @@ function getDynamicPaidFee(student) {
 }
 
 // ==========================================================================
-// 3. AUTHENTICATION (STANDARD & PIN)
+// 4. AUTHENTICATION (STANDARD & PIN)
 // ==========================================================================
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -197,7 +223,7 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
 });
 
 // ==========================================================================
-// 4. UI ROUTING & PERSPECTIVE SWITCHER
+// 5. UI ROUTING, STAFF RESTRICTIONS & PERSPECTIVE SWITCHER
 // ==========================================================================
 function setupApplicationUI() {
     document.getElementById('screen-login').classList.remove('active');
@@ -213,10 +239,23 @@ function setupApplicationUI() {
         btnAdminView.classList.add('hidden-initially');
     }
 
-    // Role Layout Logic
+    // Role Layout Logic & Staff Hard-Locks
     document.getElementById('nav-analytics-btn').style.display = (appState.role === 'admin') ? 'flex' : 'none';
     document.getElementById('nav-students-btn').style.display = (appState.role === 'student') ? 'none' : 'flex';
     document.getElementById('admin-staff-modules').style.display = (appState.role === 'student') ? 'none' : 'block';
+    
+    if (appState.actualRole === 'staff') {
+        // Explicitly hide unauthorized buttons for Staff
+        document.querySelectorAll('#admin-staff-modules .action-btn').forEach(btn => {
+            const text = btn.innerText.trim();
+            if (['Admit', 'Jobs', 'Print', 'Expense'].includes(text)) {
+                btn.style.display = 'none';
+            }
+        });
+    } else {
+        // Show everything for Admin
+        document.querySelectorAll('#admin-staff-modules .action-btn').forEach(btn => btn.style.display = 'flex');
+    }
     
     if (appState.role === 'admin' || appState.role === 'staff') {
         updateDashboardFinancials(); 
@@ -230,7 +269,6 @@ function setupApplicationUI() {
 }
 
 function switchTab(tabId) {
-    // Intercept "Home" button for students to stay out of Admin view
     if (tabId === 'dashboard' && appState.role === 'student') {
         tabId = 'student-dash';
     }
@@ -254,7 +292,6 @@ function switchTab(tabId) {
             'uploads': {title: 'File Hub', sub: 'Share Materials & Certs', nav: -1},
             'broadcast': {title: 'Broadcast', sub: 'Send Alerts & Media', nav: -1},
             
-            // Student Specific Routes
             'student-dash': {title: 'My Profile', sub: 'Student Portal', nav: 0},
             'stu-materials': {title: 'Study Materials', sub: 'Downloads', nav: 0},
             'stu-certs': {title: 'Certificates', sub: 'My Awards', nav: 0},
@@ -317,10 +354,9 @@ function exitAdminPreview() {
 }
 
 // ==========================================================================
-// 5. DATA SYNCING LOGIC
+// 6. DATA SYNCING LOGIC
 // ==========================================================================
 async function syncDatabase(actionDesc) {
-    // Only Admin can write to database, EXCEPT Staff can write Materials and Notices
     const isStaffPermittedAction = (actionDesc === "Upload Material" || actionDesc === "Broadcast Notice");
     
     if (appState.actualRole === 'student' || (appState.actualRole === 'staff' && !isStaffPermittedAction)) { 
@@ -345,7 +381,7 @@ async function syncDatabase(actionDesc) {
 }
 
 // ==========================================================================
-// 6. MODALS (HISTORY, NOTIFICATIONS, DETAILS, EDIT)
+// 7. MODALS (HISTORY, NOTIFICATIONS, DETAILS, EDIT)
 // ==========================================================================
 function openHistoryModal(type) {
     const container = document.getElementById('history-list-container');
@@ -393,7 +429,6 @@ function openNotificationModal() {
     let found = false;
     
     if (appState.role === 'student') {
-        // Students ONLY see their own dues
         const actualPaid = getDynamicPaidFee(appState.currentUser);
         const dues = appState.currentUser.totalFee - actualPaid;
         if(dues > 0) {
@@ -406,7 +441,6 @@ function openNotificationModal() {
                 </div>`;
         }
     } else {
-        // Admins see everyone's dues
         appData.students.forEach(st => {
             const actualPaid = getDynamicPaidFee(st);
             const dues = st.totalFee - actualPaid;
@@ -422,7 +456,6 @@ function openNotificationModal() {
     }
 
     if(!found) listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 24px 0; font-weight: 700;">No pending dues detected.</p>`;
-    
     document.getElementById('modal-notifications').classList.add('active');
 }
 function closeNotificationModal() { document.getElementById('modal-notifications').classList.remove('active'); }
@@ -457,7 +490,7 @@ function openStudentDetailModal(studentId) {
     const st = appData.students.find(s => s.id === studentId);
     if (!st) return;
 
-    appState.currentUser = st; // Save context for Edit Function
+    appState.currentUser = st; 
     
     const actualPaid = getDynamicPaidFee(st);
     const dues = st.totalFee - actualPaid;
@@ -489,9 +522,14 @@ function openStudentDetailModal(studentId) {
         });
     }
 
-    // Show Edit Button only for True Admins
-    if(appState.actualRole === 'admin') {
-        document.getElementById('btn-edit-student-trigger').classList.remove('hidden-initially');
+    // Hard-lock Edit Button for Staff
+    const editBtn = document.getElementById('btn-edit-student-trigger');
+    if (editBtn) {
+        if(appState.actualRole === 'admin') {
+            editBtn.classList.remove('hidden-initially');
+        } else {
+            editBtn.classList.add('hidden-initially');
+        }
     }
 
     closeNotificationModal();
@@ -509,7 +547,7 @@ function openEditStudentModal() {
     document.getElementById('edit-st-phone').value = st.phone;
     document.getElementById('edit-st-course').value = st.course;
     document.getElementById('edit-st-fee').value = st.totalFee;
-    document.getElementById('edit-st-paid').value = st.paidFee || 0; // Load base advance paid
+    document.getElementById('edit-st-paid').value = st.paidFee || 0; 
     
     document.getElementById('modal-edit-student').classList.add('active');
 }
@@ -532,19 +570,18 @@ document.getElementById('edit-student-form').addEventListener('submit', async fu
         if(await syncDatabase("Edit Student Details")) {
             alert("Student Profile Updated!");
             closeEditStudentModal();
-            openStudentDetailModal(targetId); // Refresh underlying detail modal
-            if(appState.role === 'admin') renderStudents(); // Refresh background list if visible
+            openStudentDetailModal(targetId); 
+            if(appState.role === 'admin') renderStudents(); 
         }
     }
 });
 
 
 // ==========================================================================
-// 7. FILE UPLOADS & BROADCASTS (Staff & Admin)
+// 8. FILE UPLOADS & BROADCASTS (Staff & Admin)
 // ==========================================================================
 document.getElementById('upload-material-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    // Both Admin and Staff can upload study materials
     if(appState.actualRole !== 'admin' && appState.actualRole !== 'staff') return alert("Action Denied.");
     
     const title = document.getElementById('mat-title').value;
@@ -618,12 +655,13 @@ document.getElementById('broadcast-form').addEventListener('submit', async funct
             alert("Notice broadcasted to all students!"); 
             this.reset();
             document.getElementById('bc-media-name').innerText = 'Attach Photo/Video (Optional)';
+            switchTab('dashboard');
         }
     } catch (error) { hideLoader(); alert("Failed to attach media. File might be too large."); }
 });
 
 // ==========================================================================
-// 8. STANDARD ADMIN FORM SUBMISSIONS
+// 9. STANDARD ADMIN FORM SUBMISSIONS
 // ==========================================================================
 function recalcStats() {
     appData.stats.income = 0; appData.stats.expense = 0;
@@ -683,7 +721,7 @@ document.getElementById('admission-form').addEventListener('submit', async funct
 });
 
 // ==========================================================================
-// 9. RENDERERS
+// 10. RENDERERS
 // ==========================================================================
 function updateDashboardFinancials() {
     document.getElementById('dash-balance').innerText = `₹${appData.stats.balance.toLocaleString('en-IN')}`;
@@ -738,7 +776,6 @@ function renderStudentDashboard() {
     const st = appState.currentUser;
     if(!st) return;
 
-    // Profile Top Header
     document.getElementById('stu-name').innerText = st.name; 
     document.getElementById('stu-course').innerText = st.course;
     document.getElementById('stu-date').innerText = st.date;
@@ -746,14 +783,12 @@ function renderStudentDashboard() {
     if (st.image) { avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`; avatarEl.style.padding = "0"; } 
     else { avatarEl.innerHTML = st.name.charAt(0).toUpperCase(); avatarEl.style.padding = ""; }
     
-    // Dues Banner
     const actualPaid = getDynamicPaidFee(st);
     const dues = st.totalFee - actualPaid; 
     document.getElementById('stu-due-amount').innerText = `₹${dues}`; 
     document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
-    // 1. My Certificates Panel (Now safely uses downloadMediaFile)
     const certCtn = document.getElementById('stu-certs-list');
     const myCerts = (appData.certificates || []).filter(c => c.studentId === st.id);
     if(myCerts.length > 0) {
@@ -764,7 +799,6 @@ function renderStudentDashboard() {
             </div>`).join('');
     } else { certCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700; margin-top: 20px;">No certificates issued yet.</p>'; }
 
-    // 2. Study Materials Panel (Now safely uses downloadMediaFile)
     const matCtn = document.getElementById('stu-materials-list');
     const myMats = (appData.materials || []).filter(m => m.course.toLowerCase() === 'all' || m.course.toLowerCase() === st.course.toLowerCase());
     if(myMats.length > 0) {
@@ -775,7 +809,6 @@ function renderStudentDashboard() {
             </div>`).join('');
     } else { matCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700; margin-top: 20px;">No materials available.</p>'; }
 
-    // 3. Notice Board Panel
     const noticesEl = document.getElementById('stu-notices-list'); 
     noticesEl.innerHTML = '';
     if(appData.notices && appData.notices.length > 0) {
