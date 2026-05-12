@@ -8,11 +8,11 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbxFsBuyiWOdTMMGeOgTXhvS
 
 // --- GLOBAL STATE ---
 let appState = { 
-    actualRole: null,   // The verified login role ('admin', 'staff', 'student')
-    role: null,         // The CURRENT perspective being viewed
-    actualUser: null,   // The verified user profile (if logged in as student)
-    currentUser: null,  // The CURRENT user profile being viewed
-    authString: ""      // Cached password for current session
+    actualRole: null,   
+    role: null,         
+    actualUser: null,   
+    currentUser: null,  
+    authString: ""      
 };
 
 let appData = { 
@@ -22,25 +22,7 @@ let appData = {
 let analyticsChartInstance = null;
 
 // ==========================================================================
-// 1. SMART PULL-TO-REFRESH KILLER (Allows Normal Scrolling)
-// ==========================================================================
-let touchStartY = 0;
-document.addEventListener('touchstart', e => { touchStartY = e.touches[0].pageY; }, { passive: true });
-
-document.addEventListener('touchmove', function(e) {
-    const y = e.touches[0].pageY;
-    const pullingDown = y > touchStartY;
-    const scrollable = e.target.closest('.content-area, .custom-scrollbar, .modal-scroll-area');
-    
-    if (!scrollable) {
-        e.preventDefault(); // Kills bounce outside scrollable areas
-    } else if (pullingDown && scrollable.scrollTop <= 0) {
-        e.preventDefault(); // Traps the pull-to-refresh at the absolute top of the page
-    }
-}, { passive: false });
-
-// ==========================================================================
-// 2. HELPER FUNCTIONS (File Encoding & Safe Blob Downloading)
+// 1. HELPER FUNCTIONS (Base64 File Encoding & Safe Downloading)
 // ==========================================================================
 const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -49,64 +31,59 @@ const fileToBase64 = (file) => new Promise((resolve, reject) => {
     reader.onerror = error => reject(error);
 });
 
-// Fixes damaged files by properly decoding Base64 strings into physical Blobs
-function base64ToBlob(dataURI) {
-    const splitDataURI = dataURI.split(',');
-    const byteString = atob(splitDataURI[1]);
-    const mimeString = splitDataURI[0].split(':')[1].split(';')[0];
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i);
-    }
-    return new Blob([ab], { type: mimeString });
-}
-
-// SAFELY DOWNLOADS FILES WITHOUT CRASHING MOBILE BROWSERS
-function downloadMediaFile(type, id) {
+// SAFELY DOWNLOADS FILES WITHOUT CORRUPTION
+async function downloadMediaFile(type, id) {
     showLoader();
-    setTimeout(() => {
-        try {
-            let item = (type === 'cert') ? appData.certificates.find(c => c.id === id) : appData.materials.find(m => m.id === id);
-            
-            if (!item || !item.file) {
-                hideLoader();
-                return alert("File data corrupted or missing.");
-            }
-
-            // Convert to clean physical Blob safely
-            const blob = base64ToBlob(item.file);
-            const blobUrl = window.URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = blobUrl;
-            a.download = item.filename || 'download';
-            document.body.appendChild(a);
-            a.click();
-            
-            // Cleanup memory after download starts
-            setTimeout(() => {
-                window.URL.revokeObjectURL(blobUrl);
-                document.body.removeChild(a);
-                hideLoader();
-            }, 1000);
-
-        } catch (error) {
+    try {
+        let item = (type === 'cert') ? appData.certificates.find(c => c.id === id) : appData.materials.find(m => m.id === id);
+        
+        if (!item || !item.file) {
             hideLoader();
-            alert("Download failed. File format might be unsupported.");
+            return alert("File data corrupted or missing.");
         }
-    }, 100);
+
+        // Native fetch handles Data URIs securely without corrupting binaries
+        const response = await fetch(item.file);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = item.filename || 'download';
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup memory
+        setTimeout(() => {
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+            hideLoader();
+        }, 1000);
+    } catch (error) {
+        hideLoader();
+        alert("Download failed. Connection interrupted.");
+    }
 }
 
 // ==========================================================================
-// 3. BOOT SEQUENCE & SPLASH SCREEN
+// 2. BOOT SEQUENCE & DARK MODE
 // ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
     const regDateEl = document.getElementById('reg-date');
     if(regDateEl) regDateEl.value = new Date().toISOString().split('T')[0];
+    
+    // Load Dark Mode Preference
+    if (localStorage.getItem('ei_theme') === 'dark') document.body.classList.add('dark-mode');
+    
     bootApplication();
 });
+
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('ei_theme', isDark ? 'dark' : 'light');
+}
 
 function bootApplication() {
     const savedRole = localStorage.getItem("ei_role");
@@ -129,7 +106,6 @@ function bootApplication() {
 function showLoader() { document.getElementById('global-loader').classList.remove('hide'); }
 function hideLoader() { document.getElementById('global-loader').classList.add('hide'); }
 
-// Dynamic Due Calculator (Scans full ledger)
 function getDynamicPaidFee(student) {
     let total = 0;
     if (appData.transactions) {
@@ -145,7 +121,7 @@ function getDynamicPaidFee(student) {
 }
 
 // ==========================================================================
-// 4. AUTHENTICATION (STANDARD & PIN)
+// 3. AUTHENTICATION (STANDARD & LOCAL PIN)
 // ==========================================================================
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -178,6 +154,7 @@ document.getElementById('login-form').addEventListener('submit', async function(
             if (remember) {
                 localStorage.setItem("ei_role", result.role);
                 localStorage.setItem("ei_auth", pass); 
+                localStorage.setItem("ei_userid", userid); // Stored for local PIN
             }
             setupApplicationUI(); hideLoader();
         }
@@ -188,42 +165,56 @@ document.getElementById('login-form').addEventListener('submit', async function(
     }
 });
 
+// LOCAL PIN LOGIN (No Admin Approval Needed)
 document.getElementById('pin-login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const pin = document.getElementById('pin-input').value;
-    const role = localStorage.getItem("ei_role");
+    const enteredPin = document.getElementById('pin-input').value;
+    const savedPin = localStorage.getItem("ei_savedPin");
+    const savedUserId = localStorage.getItem("ei_userid");
+    const savedPass = localStorage.getItem("ei_auth");
     
     document.getElementById('pin-error').classList.add('hidden-initially');
     showLoader();
 
-    try {
-        const response = await fetch(`${GAS_URL}?action=verifyPin&role=${role}&pin=${pin}`);
-        const result = await response.json();
-        
-        if (result.error) {
+    if (enteredPin === savedPin && savedUserId && savedPass) {
+        try {
+            // Re-authenticate in background using saved credentials
+            const response = await fetch(`${GAS_URL}?action=login&id=${encodeURIComponent(savedUserId)}&pass=${encodeURIComponent(savedPass)}`);
+            const result = await response.json();
+            
+            if (result.error) {
+                hideLoader(); 
+                document.getElementById('pin-error').innerText = "Session expired. Please log in normally.";
+                document.getElementById('pin-error').classList.remove('hidden-initially'); 
+                document.getElementById('pin-input').value = ''; 
+            } else {
+                appState.actualRole = result.role; 
+                appState.role = result.role; 
+                appState.actualUser = result.userProfile;
+                appState.currentUser = result.userProfile; 
+                appState.authString = savedPass;
+                appData = result.data; 
+                
+                if(!appData.materials) appData.materials = [];
+                if(!appData.certificates) appData.certificates = [];
+                
+                setupApplicationUI(); hideLoader();
+            }
+        } catch (error) { 
             hideLoader(); 
-            document.getElementById('pin-error').innerText = result.error;
+            document.getElementById('pin-error').innerText = "Network Error.";
             document.getElementById('pin-error').classList.remove('hidden-initially'); 
-            document.getElementById('pin-input').value = ''; 
-        } else {
-            appState.actualRole = result.role; 
-            appState.role = result.role; 
-            appData = result.data; 
-            
-            if(!appData.materials) appData.materials = [];
-            if(!appData.certificates) appData.certificates = [];
-            
-            setupApplicationUI(); hideLoader();
         }
-    } catch (error) { 
-        hideLoader(); 
-        document.getElementById('pin-error').innerText = "Network Error.";
+    } else {
+        hideLoader();
+        document.getElementById('pin-error').innerText = "Invalid PIN.";
         document.getElementById('pin-error').classList.remove('hidden-initially'); 
+        document.getElementById('pin-input').value = ''; 
     }
 });
 
 // ==========================================================================
-// 5. UI ROUTING, STAFF RESTRICTIONS & PERSPECTIVE SWITCHER
+// 4. UI ROUTING & STAFF RESTRICTIONS
 // ==========================================================================
 function setupApplicationUI() {
     document.getElementById('screen-login').classList.remove('active');
@@ -239,21 +230,18 @@ function setupApplicationUI() {
         btnAdminView.classList.add('hidden-initially');
     }
 
-    // Role Layout Logic & Staff Hard-Locks
+    // Role Layout Logic
     document.getElementById('nav-analytics-btn').style.display = (appState.role === 'admin') ? 'flex' : 'none';
     document.getElementById('nav-students-btn').style.display = (appState.role === 'student') ? 'none' : 'flex';
     document.getElementById('admin-staff-modules').style.display = (appState.role === 'student') ? 'none' : 'block';
     
+    // HARD LOCK FOR STAFF: Hide Financial & Registration modules
     if (appState.actualRole === 'staff') {
-        // Explicitly hide unauthorized buttons for Staff
         document.querySelectorAll('#admin-staff-modules .action-btn').forEach(btn => {
             const text = btn.innerText.trim();
-            if (['Admit', 'Jobs', 'Print', 'Expense'].includes(text)) {
-                btn.style.display = 'none';
-            }
+            if (['Admit', 'Jobs', 'Print', 'Expense'].includes(text)) btn.style.display = 'none';
         });
     } else {
-        // Show everything for Admin
         document.querySelectorAll('#admin-staff-modules .action-btn').forEach(btn => btn.style.display = 'flex');
     }
     
@@ -269,9 +257,7 @@ function setupApplicationUI() {
 }
 
 function switchTab(tabId) {
-    if (tabId === 'dashboard' && appState.role === 'student') {
-        tabId = 'student-dash';
-    }
+    if (tabId === 'dashboard' && appState.role === 'student') tabId = 'student-dash';
 
     showLoader();
     setTimeout(() => {
@@ -282,15 +268,15 @@ function switchTab(tabId) {
         if(targetView) targetView.classList.add('active');
         
         const titles = {
-            'dashboard': {title: 'Dashboard', sub: 'Financial Overview', nav: 0},
+            'dashboard': {title: 'Dashboard', sub: 'Overview', nav: 0},
             'students': {title: 'Students', sub: 'Database', nav: 1},
             'analytics': {title: 'Analytics', sub: 'P&L Chart', nav: 2},
             'admission': {title: 'New Admission', sub: 'Add Student', nav: -1},
             'job': {title: 'Job Desk', sub: 'Applications', nav: -1},
             'print': {title: 'Print Desk', sub: 'Revenue', nav: -1},
             'expense': {title: 'Expenditure', sub: 'Deductions', nav: -1},
-            'uploads': {title: 'File Hub', sub: 'Share Materials & Certs', nav: -1},
-            'broadcast': {title: 'Broadcast', sub: 'Send Alerts & Media', nav: -1},
+            'uploads': {title: 'File Hub', sub: 'Materials & Certs', nav: -1},
+            'broadcast': {title: 'Broadcast', sub: 'Send Alerts', nav: -1},
             
             'student-dash': {title: 'My Profile', sub: 'Student Portal', nav: 0},
             'stu-materials': {title: 'Study Materials', sub: 'Downloads', nav: 0},
@@ -339,7 +325,6 @@ function changeAdminView(targetRole) {
     } else {
         appState.currentUser = appState.actualUser; 
     }
-    
     appState.role = targetRole;
     closeViewSwitcher();
     document.getElementById('admin-view-banner').classList.remove('hidden-initially');
@@ -354,7 +339,7 @@ function exitAdminPreview() {
 }
 
 // ==========================================================================
-// 6. DATA SYNCING LOGIC
+// 5. DATA SYNCING LOGIC
 // ==========================================================================
 async function syncDatabase(actionDesc) {
     const isStaffPermittedAction = (actionDesc === "Upload Material" || actionDesc === "Broadcast Notice");
@@ -381,7 +366,7 @@ async function syncDatabase(actionDesc) {
 }
 
 // ==========================================================================
-// 7. MODALS (HISTORY, NOTIFICATIONS, DETAILS, EDIT)
+// 6. MODALS (HISTORY, NOTIFICATIONS, DETAILS, EDIT)
 // ==========================================================================
 function openHistoryModal(type) {
     const container = document.getElementById('history-list-container');
@@ -460,28 +445,27 @@ function openNotificationModal() {
 }
 function closeNotificationModal() { document.getElementById('modal-notifications').classList.remove('active'); }
 
-// Settings & Auth
+// Settings, Theme & PIN Setup
 function openSettingsModal() { 
-    if(appState.actualRole === 'admin' || appState.actualRole === 'staff') { document.getElementById('btn-setup-pin').classList.remove('hidden-initially'); }
+    document.getElementById('btn-setup-pin').classList.remove('hidden-initially');
     document.getElementById('modal-settings').classList.add('active'); 
 }
 function closeSettingsModal() { document.getElementById('modal-settings').classList.remove('active'); }
-async function promptSetPin() {
-    closeSettingsModal();
-    const pin = prompt("Enter a new 4-Digit PIN for quick access:");
-    if(!pin || !/^\d{4}$/.test(pin)) return alert("PIN must be exactly 4 numbers.");
-    const masterPass = prompt("Enter Master Admin Password to authorize this security change:");
-    if(!masterPass) return;
 
-    showLoader();
-    try {
-        const res = await fetch(GAS_URL, { method: 'POST', headers: {"Content-Type": "text/plain"}, body: JSON.stringify({action: 'setPin', role: appState.actualRole, pin: pin, auth: masterPass}) });
-        const result = await res.json();
-        hideLoader();
-        if(result.success) { localStorage.setItem("ei_usePin", "true"); alert("PIN saved successfully!"); } else { alert(result.error); }
-    } catch(e) { hideLoader(); alert("Network error. Could not save PIN."); }
+function promptSetPin() {
+    closeSettingsModal();
+    const pin = prompt("Set a 4-Digit PIN for your account on this device:");
+    if(!pin || !/^\d{4}$/.test(pin)) return alert("PIN must be exactly 4 numbers.");
+
+    // Local Storage PIN (No Admin Needed)
+    localStorage.setItem("ei_usePin", "true");
+    localStorage.setItem("ei_savedPin", pin);
+    localStorage.setItem("ei_role", appState.role); // Ensures role is retained
+    
+    alert("Personal PIN saved successfully for this device!");
 }
-function clearSavedLogin() { localStorage.removeItem("ei_role"); localStorage.removeItem("ei_usePin"); localStorage.removeItem("ei_auth"); window.location.reload(); }
+
+function clearSavedLogin() { localStorage.removeItem("ei_role"); localStorage.removeItem("ei_usePin"); localStorage.removeItem("ei_savedPin"); localStorage.removeItem("ei_auth"); localStorage.removeItem("ei_userid"); window.location.reload(); }
 
 // --- STUDENT DETAILS MODAL ---
 function openStudentDetailModal(studentId) {
@@ -522,7 +506,7 @@ function openStudentDetailModal(studentId) {
         });
     }
 
-    // Hard-lock Edit Button for Staff
+    // Hide Edit Button for Staff
     const editBtn = document.getElementById('btn-edit-student-trigger');
     if (editBtn) {
         if(appState.actualRole === 'admin') {
@@ -776,6 +760,7 @@ function renderStudentDashboard() {
     const st = appState.currentUser;
     if(!st) return;
 
+    // Profile Top Header
     document.getElementById('stu-name').innerText = st.name; 
     document.getElementById('stu-course').innerText = st.course;
     document.getElementById('stu-date').innerText = st.date;
@@ -783,12 +768,14 @@ function renderStudentDashboard() {
     if (st.image) { avatarEl.innerHTML = `<img src="${st.image}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`; avatarEl.style.padding = "0"; } 
     else { avatarEl.innerHTML = st.name.charAt(0).toUpperCase(); avatarEl.style.padding = ""; }
     
+    // Dues Banner
     const actualPaid = getDynamicPaidFee(st);
     const dues = st.totalFee - actualPaid; 
     document.getElementById('stu-due-amount').innerText = `₹${dues}`; 
     document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
+    // Certificates
     const certCtn = document.getElementById('stu-certs-list');
     const myCerts = (appData.certificates || []).filter(c => c.studentId === st.id);
     if(myCerts.length > 0) {
@@ -799,6 +786,7 @@ function renderStudentDashboard() {
             </div>`).join('');
     } else { certCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700; margin-top: 20px;">No certificates issued yet.</p>'; }
 
+    // Materials
     const matCtn = document.getElementById('stu-materials-list');
     const myMats = (appData.materials || []).filter(m => m.course.toLowerCase() === 'all' || m.course.toLowerCase() === st.course.toLowerCase());
     if(myMats.length > 0) {
@@ -809,6 +797,7 @@ function renderStudentDashboard() {
             </div>`).join('');
     } else { matCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700; margin-top: 20px;">No materials available.</p>'; }
 
+    // Notices
     const noticesEl = document.getElementById('stu-notices-list'); 
     noticesEl.innerHTML = '';
     if(appData.notices && appData.notices.length > 0) {
