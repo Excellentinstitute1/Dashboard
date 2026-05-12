@@ -22,18 +22,7 @@ let appData = {
 let analyticsChartInstance = null;
 
 // ==========================================================================
-// 1. BULLETPROOF PULL-TO-REFRESH KILLER (Double Lock)
-// ==========================================================================
-document.addEventListener('touchmove', function(event) {
-    // Only allow native scrolling if the user's finger is inside a designated scroll area
-    const isScrollable = event.target.closest('.content-area, .custom-scrollbar, .modal-scroll-area');
-    if (!isScrollable) {
-        event.preventDefault(); // Kills the iOS/Android bounce effect on the main body
-    }
-}, { passive: false });
-
-// ==========================================================================
-// 2. HELPER FUNCTIONS (Base64 File Encoding)
+// 1. HELPER FUNCTIONS (Base64 File Encoding & Safe Downloading)
 // ==========================================================================
 const fileToBase64 = (file) => new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -42,8 +31,50 @@ const fileToBase64 = (file) => new Promise((resolve, reject) => {
     reader.onerror = error => reject(error);
 });
 
+// SAFELY DOWNLOADS FILES WITHOUT CRASHING MOBILE BROWSERS
+function downloadMediaFile(type, id) {
+    showLoader();
+    setTimeout(() => {
+        try {
+            let item = (type === 'cert') ? appData.certificates.find(c => c.id === id) : appData.materials.find(m => m.id === id);
+            
+            if (!item || !item.file) {
+                hideLoader();
+                return alert("File data corrupted or missing.");
+            }
+
+            // Converts the giant Base64 string into a safe, lightweight Blob URL
+            fetch(item.file)
+                .then(res => res.blob())
+                .then(blob => {
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = blobUrl;
+                    a.download = item.filename || 'download';
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // Cleanup memory after download starts
+                    setTimeout(() => {
+                        window.URL.revokeObjectURL(blobUrl);
+                        document.body.removeChild(a);
+                        hideLoader();
+                    }, 1000);
+                })
+                .catch(err => {
+                    hideLoader();
+                    alert("Error downloading file. Connection interrupted.");
+                });
+        } catch (error) {
+            hideLoader();
+            alert("Download failed.");
+        }
+    }, 100);
+}
+
 // ==========================================================================
-// 3. BOOT SEQUENCE & SPLASH SCREEN
+// 2. BOOT SEQUENCE & SPLASH SCREEN
 // ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
     const regDateEl = document.getElementById('reg-date');
@@ -88,7 +119,7 @@ function getDynamicPaidFee(student) {
 }
 
 // ==========================================================================
-// 4. AUTHENTICATION (STANDARD & PIN)
+// 3. AUTHENTICATION (STANDARD & PIN)
 // ==========================================================================
 document.getElementById('login-form').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -166,7 +197,7 @@ document.getElementById('pin-login-form').addEventListener('submit', async funct
 });
 
 // ==========================================================================
-// 5. UI ROUTING & PERSPECTIVE SWITCHER
+// 4. UI ROUTING & PERSPECTIVE SWITCHER
 // ==========================================================================
 function setupApplicationUI() {
     document.getElementById('screen-login').classList.remove('active');
@@ -286,7 +317,7 @@ function exitAdminPreview() {
 }
 
 // ==========================================================================
-// 6. DATA SYNCING LOGIC
+// 5. DATA SYNCING LOGIC
 // ==========================================================================
 async function syncDatabase(actionDesc) {
     // Only Admin can write to database, EXCEPT Staff can write Materials and Notices
@@ -314,7 +345,7 @@ async function syncDatabase(actionDesc) {
 }
 
 // ==========================================================================
-// 7. MODALS (HISTORY, NOTIFICATIONS, DETAILS, EDIT)
+// 6. MODALS (HISTORY, NOTIFICATIONS, DETAILS, EDIT)
 // ==========================================================================
 function openHistoryModal(type) {
     const container = document.getElementById('history-list-container');
@@ -509,7 +540,7 @@ document.getElementById('edit-student-form').addEventListener('submit', async fu
 
 
 // ==========================================================================
-// 8. FILE UPLOADS & BROADCASTS (Staff & Admin)
+// 7. FILE UPLOADS & BROADCASTS (Staff & Admin)
 // ==========================================================================
 document.getElementById('upload-material-form').addEventListener('submit', async function(e) {
     e.preventDefault();
@@ -592,7 +623,7 @@ document.getElementById('broadcast-form').addEventListener('submit', async funct
 });
 
 // ==========================================================================
-// 9. STANDARD ADMIN FORM SUBMISSIONS
+// 8. STANDARD ADMIN FORM SUBMISSIONS
 // ==========================================================================
 function recalcStats() {
     appData.stats.income = 0; appData.stats.expense = 0;
@@ -652,7 +683,7 @@ document.getElementById('admission-form').addEventListener('submit', async funct
 });
 
 // ==========================================================================
-// 10. RENDERERS
+// 9. RENDERERS
 // ==========================================================================
 function updateDashboardFinancials() {
     document.getElementById('dash-balance').innerText = `₹${appData.stats.balance.toLocaleString('en-IN')}`;
@@ -722,25 +753,25 @@ function renderStudentDashboard() {
     document.getElementById('stu-due-card').style.background = dues > 0 ? 'var(--danger-bg)' : 'var(--success-bg)';
     document.getElementById('stu-due-amount').style.color = dues > 0 ? 'var(--danger)' : 'var(--success)';
 
-    // 1. My Certificates Panel
+    // 1. My Certificates Panel (Now safely uses downloadMediaFile)
     const certCtn = document.getElementById('stu-certs-list');
     const myCerts = (appData.certificates || []).filter(c => c.studentId === st.id);
     if(myCerts.length > 0) {
         certCtn.innerHTML = myCerts.map(c => `
             <div class="list-item" style="padding: 16px;">
                 <div class="flex items-center"><i class="fa-solid fa-award text-2xl text-emerald-500 mr-4"></i><div><h4 style="font-weight: 800; font-size: 0.9rem;">Course Certificate</h4><p style="font-size: 0.7rem; color: var(--text-muted);">${c.date}</p></div></div>
-                <a href="${c.file}" download="${c.filename}" class="btn-primary" style="width: auto; padding: 10px 16px; font-size: 0.8rem; background: var(--success);"><i class="fa-solid fa-download"></i></a>
+                <button onclick="downloadMediaFile('cert', '${c.id}')" class="btn-primary" style="width: auto; padding: 10px 16px; font-size: 0.8rem; background: var(--success);"><i class="fa-solid fa-download"></i></button>
             </div>`).join('');
     } else { certCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700; margin-top: 20px;">No certificates issued yet.</p>'; }
 
-    // 2. Study Materials Panel
+    // 2. Study Materials Panel (Now safely uses downloadMediaFile)
     const matCtn = document.getElementById('stu-materials-list');
     const myMats = (appData.materials || []).filter(m => m.course.toLowerCase() === 'all' || m.course.toLowerCase() === st.course.toLowerCase());
     if(myMats.length > 0) {
         matCtn.innerHTML = myMats.map(m => `
             <div class="list-item" style="padding: 16px;">
                 <div class="flex items-center"><i class="fa-solid fa-file-pdf text-2xl text-indigo-500 mr-4"></i><div style="max-width: 180px;"><h4 style="font-weight: 800; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.title}</h4><p style="font-size: 0.7rem; color: var(--text-muted);">${m.date}</p></div></div>
-                <a href="${m.file}" download="${m.filename}" class="btn-primary" style="width: auto; padding: 10px 16px; font-size: 0.8rem;"><i class="fa-solid fa-download"></i></a>
+                <button onclick="downloadMediaFile('mat', '${m.id}')" class="btn-primary" style="width: auto; padding: 10px 16px; font-size: 0.8rem;"><i class="fa-solid fa-download"></i></button>
             </div>`).join('');
     } else { matCtn.innerHTML = '<p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 700; margin-top: 20px;">No materials available.</p>'; }
 
