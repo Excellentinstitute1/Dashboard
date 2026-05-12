@@ -5,15 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Excellent Institute ERP</title>
     
-    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Link to your Premium CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- BULLETPROOF PULL-TO-REFRESH TRAP -->
     <style>
         html, body {
             position: fixed !important;
@@ -40,12 +37,10 @@
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased relative">
 
-    <!-- GLOBAL WATERMARK -->
     <div class="fixed inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden">
         <img src="excellent institute logo.jpeg" alt="Watermark" class="w-96 h-96 object-contain opacity-[0.03] grayscale">
     </div>
 
-    <!-- GLOBAL SPLASH SCREEN -->
     <div id="global-loader" class="relative z-[9999]">
         <div class="splash-logo-wrapper">
             <div class="splash-spinner"></div>
@@ -55,16 +50,13 @@
         <p style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase;">Student & Staff Portal</p>
     </div>
 
-    <!-- MAIN APP CONTAINER -->
     <div id="app-container" class="hidden-initially relative z-10">
 
-        <!-- Admin Preview Mode Banner -->
         <div id="admin-view-banner" class="hidden-initially" style="background: var(--danger); color: white; text-align: center; font-size: 0.75rem; font-weight: 800; padding: 8px; z-index: 60; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(244,63,94,0.3);">
             <i class="fa-solid fa-eye-slash mr-2"></i> Admin Preview Mode Active 
             <button onclick="exitAdminPreview()" style="margin-left: 16px; background: white; color: var(--danger); border: none; padding: 4px 12px; border-radius: 12px; font-weight: 900; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Exit</button>
         </div>
 
-        <!-- SCREEN: LOGIN -->
         <div id="screen-login" class="screen active bg-animated">
             <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px;">
                 <div id="panel-standard-login" class="glass-panel" style="padding: 32px 24px; border-radius: 32px; text-align: center;">
@@ -116,7 +108,6 @@
             </div>
         </div>
 
-        <!-- MAIN HEADER -->
         <header id="main-header" class="top-app-bar hidden-initially">
             <div>
                 <h2 id="page-title">Dashboard</h2>
@@ -126,7 +117,6 @@
                 <button id="btn-admin-view" onclick="openViewSwitcher()" class="hidden-initially" style="background: rgba(255,255,255,0.15); border: none; width: 35px; height: 35px; border-radius: 50%; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-eye"></i>
                 </button>
-                <!-- OVERFLOW VISIBLE: Fixes the clipping of the red dot -->
                 <div class="notification-icon" onclick="openNotificationModal()" style="overflow: visible !important;">
                     <i class="fa-solid fa-bell"></i>
                     <span id="notif-dot" class="badge-dot hidden-initially"></span>
@@ -134,10 +124,8 @@
             </div>
         </header>
 
-        <!-- MAIN SCROLLABLE CONTENT -->
         <main id="main-content" class="content-area custom-scrollbar hidden-initially">
             
-            <!-- VIEW: DASHBOARD (Admin/Staff ONLY) -->
             <div id="view-dashboard" class="view-section">
                 <div class="stat-grid two-col">
                     <div class="stat-box income ripple-target" onclick="openHistoryModal('income')">
@@ -165,14 +153,11 @@
                         <button onclick="switchTab('print')" class="action-btn"><div class="icon-circle" style="color: var(--secondary);"><i class="fa-solid fa-print"></i></div><span>Print</span></button>
                         <button onclick="switchTab('expense')" class="action-btn"><div class="icon-circle" style="color: var(--danger);"><i class="fa-solid fa-minus"></i></div><span>Expense</span></button>
                         <button onclick="switchTab('uploads')" class="action-btn"><div class="icon-circle" style="color: #0d9488;"><i class="fa-solid fa-cloud-arrow-up"></i></div><span>Uploads</span></button>
-                        
-                        <!-- NEW DEDICATED BROADCAST BUTTON -->
                         <button onclick="switchTab('broadcast')" class="action-btn"><div class="icon-circle" style="color: var(--warning);"><i class="fa-solid fa-bullhorn"></i></div><span>Alerts</span></button>
                     </div>
                 </div>
             </div>
 
-            <!-- DEDICATED VIEW: BROADCAST (Admin/Staff) -->
             <div id="view-broadcast" class="view-section">
                 <form id="broadcast-form" class="premium-card p-5" style="border-top: 4px solid var(--warning);">
                     <div class="flex items-center mb-4 border-b pb-2">
@@ -192,7 +177,6 @@
                 </form>
             </div>
 
-            <!-- VIEW: FILE UPLOADS (Admin/Staff) -->
             <div id="view-uploads" class="view-section">
                 <form id="upload-material-form" class="premium-card p-5" style="border-top: 4px solid var(--primary);">
                     <div class="flex items-center mb-4 border-b pb-2"><i class="fa-solid fa-book-open text-xl text-indigo-500 mr-3"></i><h3 style="font-weight: 900; color: var(--text-heading);">Upload Study Material</h3></div>
@@ -210,7 +194,6 @@
                 </form>
             </div>
 
-            <!-- VIEW: STUDENT PROFILE (ISOLATED HOME FOR STUDENTS) -->
             <div id="view-student-dash" class="view-section">
                 <div class="profile-header p-5 rounded-[24px] mb-4 shadow-lg text-center relative overflow-hidden" style="background: linear-gradient(135deg, var(--primary-dark), var(--primary));">
                     <div id="stu-avatar" class="avatar-large mx-auto relative z-10">S</div>
@@ -234,12 +217,10 @@
                 </div>
             </div>
 
-            <!-- STUDENT DEDICATED VIEWS -->
             <div id="view-stu-materials" class="view-section"><div class="flex items-center mb-6 pb-2 border-b border-slate-200"><i class="fa-solid fa-book-open text-2xl text-indigo-500 mr-3"></i><h3 style="font-weight: 900; font-size: 1.2rem; color: var(--text-heading);">Study Materials</h3></div><div id="stu-materials-list" class="space-y-3"></div></div>
             <div id="view-stu-certs" class="view-section"><div class="flex items-center mb-6 pb-2 border-b border-slate-200"><i class="fa-solid fa-award text-2xl text-emerald-500 mr-3"></i><h3 style="font-weight: 900; font-size: 1.2rem; color: var(--text-heading);">My Certificates</h3></div><div id="stu-certs-list" class="space-y-3"></div></div>
             <div id="view-stu-notices" class="view-section"><div class="flex items-center mb-6 pb-2 border-b border-slate-200"><i class="fa-solid fa-bullhorn text-2xl text-amber-500 mr-3"></i><h3 style="font-weight: 900; font-size: 1.2rem; color: var(--text-heading);">Notice Board</h3></div><div id="stu-notices-list" class="space-y-4"></div></div>
 
-            <!-- ADMIN VIEWS -->
             <div id="view-admission" class="view-section"><form id="admission-form" class="premium-card p-5"><div class="input-group"><label>Admission Date</label><input type="date" id="reg-date" class="form-input" required></div><div class="input-group"><label>Full Name</label><input type="text" id="reg-name" class="form-input" required></div><div class="input-group"><label>10-Digit Phone (Student ID)</label><input type="tel" id="reg-phone" class="form-input" pattern="[0-9]{10}" required></div><div class="input-group"><label>Course Selected</label><input type="text" id="reg-course" class="form-input" required></div><div class="grid grid-cols-2 gap-4"><div class="input-group"><label>Total Fee (₹)</label><input type="number" id="reg-fee" class="form-input" style="color: var(--primary); font-weight: 800;" required></div><div class="input-group"><label>Advance (₹)</label><input type="number" id="reg-paid" class="form-input" style="color: var(--success); font-weight: 800;" required></div></div><button type="submit" class="btn-primary mt-2">Register Student</button></form></div>
             <div id="view-students" class="view-section"><div class="input-group sticky top-0 z-10 pb-2 pt-1" style="background: var(--bg-base);"><input type="text" id="student-search" class="form-input shadow-sm" placeholder="Search by name or phone..." onkeyup="renderStudents()"></div><div id="student-list"></div></div>
             <div id="view-job" class="view-section"><form id="job-form" class="premium-card p-5" style="border-top: 4px solid var(--info);"><div class="input-group"><label>Applicant Name</label><input type="text" id="job-name" class="form-input" required></div><div class="input-group"><label>Applied Post</label><input type="text" id="job-post" class="form-input" required></div><div class="input-group"><label>Amount Received (₹)</label><input type="number" id="job-amount" class="form-input" style="color: var(--info); font-weight: 800;" required></div><button type="submit" class="btn-primary mt-2" style="background: var(--info);">Save Job Income</button></form><div id="job-list"></div></div>
@@ -249,7 +230,6 @@
 
         </main>
 
-        <!-- FLOATING BOTTOM NAVIGATION -->
         <div id="bottom-nav" class="bottom-nav-container hidden-initially">
             <div class="bottom-nav">
                 <button onclick="switchTab('dashboard')" class="nav-btn active" id="nav-home-btn"><i class="fa-solid fa-house nav-icon"></i><span class="nav-text">Home</span></button>
@@ -259,11 +239,9 @@
             </div>
         </div>
 
-        <!-- MODAL: DETAILED STUDENT PROFILE (Grass Animation Safe) -->
         <div id="modal-student-detail" class="modal-overlay">
             <div class="modal-content" style="padding: 0; display: flex; flex-direction: column; overflow: hidden; position: relative;">
                 
-                <!-- The pure CSS Grass Animation Wrapper -->
                 <div class="organic-grass-bg" style="position: absolute; inset: 0; z-index: 0; pointer-events: none;"></div>
                 
                 <div class="modal-pull-bar" style="margin-top: 24px; z-index: 10;"></div>
@@ -275,7 +253,6 @@
                     <button onclick="closeStudentDetailModal()" style="background: rgba(0,0,0,0.05); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button>
                 </div>
 
-                <!-- Safe Scroll Area -->
                 <div class="modal-scroll-area" style="padding: 24px; overflow-y: auto; max-height: 65vh; position: relative; z-index: 10;">
                     <div class="space-y-4">
                         <div class="grid grid-cols-2 gap-4">
@@ -294,7 +271,6 @@
                             <div id="detail-history-list" class="space-y-2 max-h-40 overflow-y-auto modal-scroll-area pr-2"></div>
                         </div>
 
-                        <!-- Admin Edit Button -->
                         <button id="btn-edit-student-trigger" onclick="openEditStudentModal()" class="hidden-initially w-full mt-4 bg-slate-800 text-white font-bold py-3 rounded-xl cursor-pointer shadow-md transition transform active:scale-95">
                             <i class="fa-solid fa-pen-to-square mr-2"></i> Edit Student Data
                         </button>
@@ -303,7 +279,6 @@
             </div>
         </div>
 
-        <!-- NEW MODAL: EDIT STUDENT DATA (Admin Only) -->
         <div id="modal-edit-student" class="modal-overlay" style="z-index: 110;">
             <div class="modal-content">
                 <div class="modal-pull-bar"></div>
@@ -325,12 +300,33 @@
             </div>
         </div>
 
-        <!-- MODALS: HISTORY & NOTIFICATIONS & SETTINGS & VIEW SWITCHER (Unchanged) -->
         <div id="modal-history" class="modal-overlay"><div class="modal-content" style="max-height: 85vh; display: flex; flex-direction: column;"><div class="modal-pull-bar"></div><div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-200 shrink-0"><h3 id="history-modal-title" style="font-size: 1.2rem; font-weight: 900; color: var(--text-heading);">Transaction History</h3><button onclick="closeHistoryModal()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button></div><div id="history-list-container" class="flex-1 overflow-y-auto modal-scroll-area space-y-2 pb-4"></div></div></div>
         
         <div id="modal-notifications" class="modal-overlay"><div class="modal-content"><div class="modal-pull-bar"></div><div class="flex justify-between items-center mb-4"><h3 id="notif-modal-title" style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);"><i class="fa-solid fa-bell text-rose-500 mr-2"></i> Action Required</h3><button onclick="closeNotificationModal()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button></div><div id="notif-list-details" class="modal-scroll-area pr-2" style="max-height: 60vh; overflow-y: auto;"></div></div></div>
         
-        <div id="modal-settings" class="modal-overlay"><div class="modal-content"><div class="modal-pull-bar"></div><div class="flex justify-between items-center mb-6"><h3 style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);">App Settings</h3><button onclick="closeSettingsModal()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button></div><div style="display: flex; flex-direction: column; gap: 12px;"><button id="btn-setup-pin" onclick="promptSetPin()" class="hidden-initially" style="width: 100%; text-align: left; padding: 16px; border-radius: 16px; background: #eef2ff; color: var(--primary); font-weight: 800; border: none; cursor: pointer;"><i class="fa-solid fa-key mr-3"></i> Setup / Change 4-Digit PIN</button><button onclick="clearSavedLogin()" style="width: 100%; text-align: left; padding: 16px; border-radius: 16px; background: #f1f5f9; color: var(--text-heading); font-weight: 800; border: none; cursor: pointer;"><i class="fa-solid fa-right-from-bracket mr-3"></i> Logout safely</button></div></div></div>
+        <div id="modal-settings" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-pull-bar"></div>
+                <div class="flex justify-between items-center mb-6">
+                    <h3 style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);">App Settings</h3>
+                    <button onclick="closeSettingsModal()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    
+                    <button onclick="toggleTheme()" style="width: 100%; text-align: left; padding: 16px; border-radius: 16px; background: var(--card-bg); border: 1px solid var(--card-border); color: var(--text-heading); font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                        <i class="fa-solid fa-moon mr-3 text-indigo-500"></i> Toggle Dark / Light Theme
+                    </button>
+                    
+                    <button id="btn-setup-pin" onclick="promptSetPin()" style="width: 100%; text-align: left; padding: 16px; border-radius: 16px; background: rgba(79, 70, 229, 0.1); color: var(--primary); font-weight: 800; border: none; cursor: pointer;">
+                        <i class="fa-solid fa-key mr-3"></i> Setup Local 4-Digit PIN
+                    </button>
+                    
+                    <button onclick="clearSavedLogin()" style="width: 100%; text-align: left; padding: 16px; border-radius: 16px; background: var(--danger-bg); color: var(--danger); font-weight: 800; border: none; cursor: pointer;">
+                        <i class="fa-solid fa-right-from-bracket mr-3"></i> Logout safely
+                    </button>
+                </div>
+            </div>
+        </div>
         
         <div id="view-switcher-modal" class="modal-overlay"><div class="modal-content"><div class="modal-pull-bar"></div><div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-2"><h3 style="font-size: 1.1rem; font-weight: 900; color: var(--text-heading);">Admin Perspective</h3><button onclick="closeViewSwitcher()" style="background: var(--bg-base); border: none; width: 35px; height: 35px; border-radius: 50%; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-times"></i></button></div><div style="display: flex; flex-direction: column; gap: 10px;"><button onclick="changeAdminView('admin')" style="width: 100%; text-align: left; padding: 14px; border-radius: 14px; background: #eef2ff; color: var(--primary); font-weight: 800; border: none; cursor: pointer;"><i class="fa-solid fa-user-shield w-6"></i> Admin (Full Access)</button><button onclick="changeAdminView('staff')" style="width: 100%; text-align: left; padding: 14px; border-radius: 14px; background: #f1f5f9; color: var(--text-main); font-weight: 800; border: none; cursor: pointer;"><i class="fa-solid fa-user-tie w-6"></i> Staff (Read Only)</button><div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light);"><p style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">View as Student:</p><select id="preview-student-select" class="form-input cursor-pointer" style="margin-bottom: 12px;"></select><button onclick="changeAdminView('student')" class="btn-primary" style="padding: 12px; font-size: 0.9rem;">Preview Student Dashboard</button></div></div></div></div>
 
